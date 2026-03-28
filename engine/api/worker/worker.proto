@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package sagaflow;
+
+option go_package = "github.com/timickb/sagaflow/gen/go/worker;worker";
+
+// Worker - реализуется сервисом-обработчиком локальных транзакций.
+service Worker {
+  // Call - вызов обработчика.
+  rpc Call(CallRequest) returns (CallResponse);
+}
+
+// CallRequest - запрос на обработку шага саги.
+message CallRequest {
+  // saga_id - идентификатор запущенной саги.
+  string saga_id = 1;
+  // step_id - идентификатор шага саги; используется в качестве ключа идемпотентности.
+  string step_id = 2;
+  // worker - название воркера, выполняющего задачу.
+  string worker = 3;
+  // context - данные саги.
+  bytes context = 4;
+}
+
+// CallResponse - ответ на CallRequest.
+message CallResponse {
+  // status - статус ответа.
+  Status status = 1;
+}
+
+// Status - статус операции
+message Status {
+  // code - код статуса
+  int32 code = 1;
+  // error - возможная ошибка
+  Error error = 2;
+}
+
+// Error - представление ошибки.
+message Error {
+  // message - сообщение ошибки.
+  string message = 1;
+  // details - дополнительные детали ошибки.
+  repeated Detail details = 2;
+}
+
+// Detail - опциональная детализация ошибки.
+message Detail {
+  // code - код детализации.
+  int32 code = 1;
+  // message - сообщение.
+  string message = 2;
+}

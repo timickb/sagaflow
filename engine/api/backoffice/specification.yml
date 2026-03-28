@@ -1,0 +1,183 @@
+---
+openapi: 3.0.3
+info:
+  title: SagaFlow Backoffice REST Protocol
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/sagaflow/v1/
+    description: Local server
+
+paths:
+  /start:
+    post:
+      operationId: startSaga
+      description: Запустить экземпляр саги на выполнение
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SagaStartRequest"
+      responses:
+        "202":
+          description: Экземпляр запущен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SagaStartResponse"
+  /status/{sagaId}:
+    get:
+      operationId: getSagaStatus
+      description: Получить статус выполнения экземпляра
+      parameters:
+        - in: path
+          name: sagaId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SagaInfo"
+  /feed:
+    get:
+      operationId: getFeed
+      description: Получить список запущенных экземпляров
+      parameters:
+        - $ref: "#/components/parameters/count"
+        - $ref: "#/components/parameters/statuses"
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+  /feed/p:
+    get:
+      operationId: getFeedPaging
+      description: Получить следующую страницу списка запущенных экземпляров
+      parameters:
+        - $ref: "#/components/parameters/paginationToken"
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+  /feed/count:
+    get:
+      operationId: gedFeedCount
+      description: Получить общее количество записей в фиде
+      responses:
+        "200":
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedCount"
+
+components:
+  parameters:
+    statuses:
+      in: query
+      name: statuses
+      description: Список статусов для фильтрации
+      schema:
+        type: array
+        items:
+          $ref: "#/components/schemas/SagaStatus"
+      required: false
+    count:
+      in: query
+      name: count
+      schema:
+        type: integer
+        description: Размер страницы
+        default: 10
+        minimum: 3
+      required: true
+    paginationToken:
+      in: query
+      name: paginationToken
+      schema:
+        type: string
+        description: Токен пагинации
+      required: true
+
+  schemas:
+    SagaStartRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - sagaName
+        - sagaVersion
+        - initialContext
+      properties:
+        sagaName:
+          type: string
+        sagaVersion:
+          type: string
+        initialContext:
+          type: object
+          additionalProperties: true
+    SagaStartResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - sagaId
+      properties:
+        sagaId:
+          type: string
+          format: uuid
+    Feed:
+      type: object
+      required:
+        - items
+        - paginationToken
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SagaInfo"
+        paginationToken:
+          type: string
+          description: Токен для запроса следующей страницы
+    FeedCount:
+      type: object
+      required:
+        - count
+      properties:
+        count:
+          type: integer
+          format: int64
+          description: Общее число записей в выборке
+    SagaInfo:
+      type: object
+      required:
+        - sagaId
+        - sagaName
+        - status
+      properties:
+        sagaId:
+          type: string
+          format: uuid
+        sagaName:
+          type: string
+        status:
+          $ref: "#/components/schemas/SagaStatus"
+    SagaStatus:
+      type: string
+      enum:
+        - PENDING
+        - RUNNING
+        - COMPLETED
+        - FAILED
+        - COMPENSATING
+        - COMPENSATED
+        - INCONSISTENT

@@ -1,0 +1,24 @@
+postgres:
+  host: localhost
+  user: sagaflow
+  name: sagaflow
+  password: qwerty
+  port: 5445
+  ssl_mode: disable
+  max_open_connections: 20
+  max_idle_connections: 20
+  auto_migrate: true
+
+kafka:
+  brokers:
+    - localhost:9092
+  group_id: sagaflow-orchestrator
+  client_id: sagaflow-orchestrator-1
+  step_result_topic: saga.step.result
+  dial_timeout: 5s
+  read_timeout: 5s
+  commit_interval: 0
+  start_offset: 0
+
+backoffice:
+  port: 8080

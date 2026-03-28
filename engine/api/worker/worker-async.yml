@@ -1,0 +1,220 @@
+asyncapi: 3.0.0
+info:
+  title: SagaFlow Coordination Async Protocol
+  version: 1.0.0
+
+servers:
+  production:
+    host: localhost:9092
+    protocol: kafka
+    description: Local broker
+
+defaultContentType: application/json
+
+channels:
+  saga.step.result:
+    address: saga.step.result
+    description: >
+      Сервис -> Оркестратор.
+      Сообщить результат выполнения локальной транзакции
+      (committed / failed / rejected).
+    messages:
+      SagaStepCommitted:
+        $ref: '#/components/messages/SagaStepCommitted'
+      SagaStepFailed:
+        $ref: '#/components/messages/SagaStepFailed'
+      SagaStepRejected:
+        $ref: '#/components/messages/SagaStepRejected'
+
+operations:
+  receiveStepResult:
+    action: receive
+    channel:
+      $ref: '#/channels/saga.step.result'
+    summary: Оркестратор получает результат выполнения шага саги.
+    messages:
+      - $ref: '#/channels/saga.step.result/messages/SagaStepCommitted'
+      - $ref: '#/channels/saga.step.result/messages/SagaStepFailed'
+      - $ref: '#/channels/saga.step.result/messages/SagaStepRejected'
+
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+
+    IsoInstant:
+      type: string
+      format: date-time
+      description: RFC3339/ISO-8601 timestamp
+
+    MessageHeaders:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          $ref: '#/components/schemas/UUID'
+        produced_at:
+          $ref: '#/components/schemas/IsoInstant'
+        schema_version:
+          type: integer
+          minimum: 1
+      required:
+        - message_id
+        - produced_at
+        - schema_version
+
+    StepRef:
+      type: object
+      additionalProperties: false
+      properties:
+        saga_id:
+          $ref: '#/components/schemas/UUID'
+        step_id:
+          $ref: '#/components/schemas/UUID'
+        step_name:
+          type: string
+          minLength: 1
+        service_name:
+          type: string
+          minLength: 1
+      required:
+        - saga_id
+        - step_id
+        - step_name
+        - service_name
+
+    WorkerInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        instance_id:
+          type: string
+          minLength: 1
+        hostname:
+          type: string
+          minLength: 1
+      required:
+        - instance_id
+
+    StepResultData:
+      type: object
+      additionalProperties: true
+      description: >
+        Произвольные данные, которые сервис хочет вернуть оркестратору
+        по результатам выполнения шага. Например, reservation_id,
+        payment_id, shipment_id и т.п.
+
+    ErrorInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: Машиночитаемый код ошибки
+        message:
+          type: string
+          minLength: 1
+          description: Человекочитаемое описание ошибки
+        retriable:
+          type: boolean
+          description: Можно ли безопасно повторить шаг
+        details:
+          type: object
+          additionalProperties: true
+      required:
+        - code
+        - message
+        - retriable
+
+  messages:
+    SagaStepCommitted:
+      name: SagaStepCommitted
+      title: Step committed
+      summary: Локальная транзакция успешно завершена и зафиксирована.
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          ref:
+            $ref: '#/components/schemas/StepRef'
+          worker:
+            $ref: '#/components/schemas/WorkerInfo'
+          status:
+            type: string
+            const: COMMITTED
+          committed_at:
+            $ref: '#/components/schemas/IsoInstant'
+          result:
+            $ref: '#/components/schemas/StepResultData'
+        required:
+          - ref
+          - worker
+          - status
+          - committed_at
+
+    SagaStepFailed:
+      name: SagaStepFailed
+      title: Step failed
+      summary: Выполнение шага завершилось ошибкой.
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          ref:
+            $ref: '#/components/schemas/StepRef'
+          worker:
+            $ref: '#/components/schemas/WorkerInfo'
+          status:
+            type: string
+            const: FAILED
+          failed_at:
+            $ref: '#/components/schemas/IsoInstant'
+          error:
+            $ref: '#/components/schemas/ErrorInfo'
+          effect:
+            type: string
+            enum: [NONE, UNKNOWN]
+            description: >
+              NONE — сервис гарантирует, что локальная транзакция не была зафиксирована.
+              UNKNOWN — сервис не может однозначно утверждать, был ли зафиксирован эффект.
+        required:
+          - ref
+          - worker
+          - status
+          - failed_at
+          - error
+          - effect
+
+    SagaStepRejected:
+      name: SagaStepRejected
+      title: Step rejected
+      summary: Шаг отклонён из-за бизнес-предусловий, без выполнения транзакции.
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          ref:
+            $ref: '#/components/schemas/StepRef'
+          worker:
+            $ref: '#/components/schemas/WorkerInfo'
+          status:
+            type: string
+            const: REJECTED
+          rejected_at:
+            $ref: '#/components/schemas/IsoInstant'
+          error:
+            $ref: '#/components/schemas/ErrorInfo'
+        required:
+          - ref
+          - worker
+          - status
+          - rejected_at
+          - error

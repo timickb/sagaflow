@@ -1,0 +1,85 @@
+services:
+
+  engine_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.engine_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5445:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: engine
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  id_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.id_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5991:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: id
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  notifications_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.notifications_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5992:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: notifications
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  payments_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.payments_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5993:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: payments
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  shop_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.shop_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5994:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: shop
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  warehouse_postgres:
+    image: postgres:15.0-alpine
+    command: postgres -c 'max_connections=5000'
+    restart: on-failure
+    volumes:
+      - ./.warehouse_pg_data/:/var/lib/postgresql/data
+    ports:
+      - "5995:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: warehouse
+      POSTGRES_HOST_AUTH_METHOD: trust

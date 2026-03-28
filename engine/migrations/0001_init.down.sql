@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS saga_step;
+DROP TABLE IF EXISTS saga_instance;
