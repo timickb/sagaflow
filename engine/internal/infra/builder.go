@@ -3,30 +3,39 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/config"
-	"github.com/timickb/sagaflow/engine/internal/engine"
+	"github.com/timickb/sagaflow/engine/internal/domain"
+	"github.com/timickb/sagaflow/engine/internal/dsl"
 	"github.com/timickb/sagaflow/engine/internal/repo"
+	"github.com/timickb/sagaflow/engine/internal/usecase/instance"
+	"github.com/timickb/sagaflow/engine/internal/worker"
 	"github.com/timickb/sagaflow/engine/migrations"
 	"github.com/timickb/sagaflow/engine/pkg/broker"
 	"github.com/timickb/sagaflow/engine/pkg/db"
 )
 
 type Builder struct {
-	ctx      context.Context
-	cfg      *config.Config
-	db       *db.Database
-	consumer *broker.KafkaStepResultReader
-	runner   *engine.Runner
+	ctx             context.Context
+	cfg             *config.Config
+	db              *db.Database
+	consumer        *broker.KafkaStepResultReader
+	runner          *worker.Runner
+	sagasCache      domain.SagaCache
+	instanceUsecase domain.InstanceUsecase
 }
 
-func NewBuilder(ctx context.Context, cfg *config.Config) (*Builder, error) {
-	b := &Builder{
-		ctx: ctx,
-		cfg: cfg,
-	}
+func NewBuilder(cfg *config.Config) (*Builder, error) {
+	b := &Builder{cfg: cfg}
+	b.buildContext()
 
+	if err := b.buildSagaCache(); err != nil {
+		return nil, err
+	}
 	if err := b.buildDB(); err != nil {
 		return nil, err
 	}
@@ -36,8 +45,22 @@ func NewBuilder(ctx context.Context, cfg *config.Config) (*Builder, error) {
 	if err := b.buildConsumer(); err != nil {
 		return nil, err
 	}
+	b.instanceUsecase = instance.NewUsecase(repo.NewInstanceRepo(b.db), b.sagasCache)
 
 	return b, nil
+}
+
+func (b *Builder) buildContext() {
+	ctx, cancel := context.WithCancel(context.Background())
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT)
+	defer signal.Stop(sigCh)
+	go func() {
+		sig := <-sigCh
+		log.Info().Str("signal", sig.String()).Msg("OS signal received")
+		cancel()
+	}()
+	b.ctx = ctx
 }
 
 func (b *Builder) buildDB() error {
@@ -70,18 +93,28 @@ func (b *Builder) buildConsumer() error {
 	return nil
 }
 
+func (b *Builder) buildSagaCache() error {
+	cache, err := dsl.NewCache(b.cfg.Runner.SagasDirPath)
+	if err != nil {
+		return fmt.Errorf("create saga cache instance: %w", err)
+	}
+	b.sagasCache = cache
+	return nil
+}
+
 func (b *Builder) buildRunner() error {
-	b.runner = engine.NewRunner(b.cfg.Runner, repo.NewInstanceRepo(b.db))
+	b.runner = worker.NewRunner(b.cfg.Runner, repo.NewInstanceRepo(b.db), b.sagasCache)
 	return nil
 }
 
 func (b *Builder) Start() error {
+	ctx := b.ctx
 	// 1. Запуск асинхронного обработчика инстансов
-	if err := b.runner.Run(b.ctx); err != nil {
+	if err := b.runner.Run(ctx); err != nil {
 		return fmt.Errorf("start runner: %w", err)
 	}
 	// 2. Запуск консьюмера для кафки
-	err := b.consumer.Start(b.ctx, func(ctx context.Context, event *broker.SagaStepResultEvent) error {
+	err := b.consumer.Start(ctx, func(ctx context.Context, event *broker.SagaStepResultEvent) error {
 		log.Info().Msgf(
 			"received step result: saga_id=%s step=%s status=%s service=%s",
 			event.Ref.SagaId,
@@ -89,12 +122,13 @@ func (b *Builder) Start() error {
 			event.Status,
 			event.Ref.ServiceName,
 		)
-
-		// обработать событие
+		if err := b.instanceUsecase.ApplyStepResult(ctx, event); err != nil {
+			return fmt.Errorf("apply step result: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("read kafka event: %w", err)
+		return fmt.Errorf("start kafka consumer: %w", err)
 	}
 	return nil
 }

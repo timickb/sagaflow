@@ -39,12 +39,24 @@ func NewFromFile(path string) (*Config, error) {
 func (c *Config) Validate() error {
 	if c.Postgres == nil {
 		return errors.New("postgres configuration is required")
+	} else {
+		if err := c.Postgres.Validate(); err != nil {
+			return err
+		}
 	}
 	if c.Kafka == nil {
 		return errors.New("kafka configuration is required")
+	} else {
+		if err := c.Kafka.Validate(); err != nil {
+			return err
+		}
 	}
 	if c.Runner == nil {
 		return errors.New("runner configuration is required")
+	} else {
+		if err := c.Runner.Validate(); err != nil {
+			return err
+		}
 	}
 	if c.Backoffice == nil {
 		return errors.New("backoffice configuration is required")

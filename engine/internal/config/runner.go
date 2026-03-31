@@ -6,7 +6,9 @@ import (
 	"time"
 )
 
+// RunnerConfig - конфигурация асинхронного обработчика экземпляров саг
 type RunnerConfig struct {
+	SagasDirPath       string `json:"sagas_dir_path"`
 	Hostname           string `yaml:"hostname"`
 	WorkersNum         int    `yaml:"workers_num" env:"WORKERS_NUM"`
 	BatchSize          int    `yaml:"batch_size" env:"BATCH_SIZE"`
@@ -18,6 +20,9 @@ type RunnerConfig struct {
 }
 
 func (c *RunnerConfig) Validate() error {
+	if c.SagasDirPath == "" {
+		return errors.New("sagas_dir_path is required")
+	}
 	if c.Hostname == "" {
 		return errors.New("hostname is required")
 	}

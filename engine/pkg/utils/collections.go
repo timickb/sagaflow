@@ -24,3 +24,12 @@ func MapToKeysSlice[T any, K comparable](data map[K]T) []K {
 	}
 	return slice
 }
+
+func Contains[T comparable](slice []T, item T) bool {
+	for _, i := range slice {
+		if i == item {
+			return true
+		}
+	}
+	return false
+}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 
 	"github.com/rs/zerolog"
@@ -25,8 +24,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to parse config file")
 	}
 
-	ctx := context.Background()
-	builder, err := infra.NewBuilder(ctx, cfg)
+	builder, err := infra.NewBuilder(cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to build dependencies")
 	}

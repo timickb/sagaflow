@@ -9,7 +9,7 @@ import (
 type InstanceView struct {
 	SagaId      uuid.UUID
 	SagaName    string
-	SagaVersion string
+	SagaVersion int
 
 	Status InstanceStatus
 

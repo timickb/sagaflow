@@ -5,11 +5,12 @@ type InstanceStartDto struct {
 	// SagaName - название (= идентификатор) саги
 	SagaName string
 	// SagaVersion - версия саги
-	SagaVersion string
+	SagaVersion int
 	// InitialContext - входные параметры инстанса
 	InitialContext InstanceContext
 
 	// IdempotencyKey - опциональный ключ идемпотентности
+	// по умолчанию = random uuid
 	IdempotencyKey *string
 	// CorrelationId - опциональный ключ контекста запроса
 	CorrelationId *string

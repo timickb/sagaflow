@@ -70,8 +70,6 @@ components:
       properties:
         saga_id:
           $ref: '#/components/schemas/UUID'
-        step_id:
-          $ref: '#/components/schemas/UUID'
         step_name:
           type: string
           minLength: 1
@@ -80,7 +78,6 @@ components:
           minLength: 1
       required:
         - saga_id
-        - step_id
         - step_name
         - service_name
 
@@ -146,7 +143,7 @@ components:
           status:
             type: string
             const: COMMITTED
-          committed_at:
+          resolved_at:
             $ref: '#/components/schemas/IsoInstant'
           result:
             $ref: '#/components/schemas/StepResultData'
@@ -154,7 +151,7 @@ components:
           - ref
           - worker
           - status
-          - committed_at
+          - resolved_at
 
     SagaStepFailed:
       name: SagaStepFailed
@@ -173,23 +170,16 @@ components:
           status:
             type: string
             const: FAILED
-          failed_at:
+          resolved_at:
             $ref: '#/components/schemas/IsoInstant'
           error:
             $ref: '#/components/schemas/ErrorInfo'
-          effect:
-            type: string
-            enum: [NONE, UNKNOWN]
-            description: >
-              NONE — сервис гарантирует, что локальная транзакция не была зафиксирована.
-              UNKNOWN — сервис не может однозначно утверждать, был ли зафиксирован эффект.
         required:
           - ref
           - worker
           - status
-          - failed_at
+          - resolved_at
           - error
-          - effect
 
     SagaStepRejected:
       name: SagaStepRejected
@@ -208,7 +198,7 @@ components:
           status:
             type: string
             const: REJECTED
-          rejected_at:
+          resolved_at:
             $ref: '#/components/schemas/IsoInstant'
           error:
             $ref: '#/components/schemas/ErrorInfo'
@@ -216,5 +206,5 @@ components:
           - ref
           - worker
           - status
-          - rejected_at
+          - resolved_at
           - error

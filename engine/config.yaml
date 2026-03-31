@@ -20,5 +20,13 @@ kafka:
   commit_interval: 0
   start_offset: 0
 
+runner:
+  sagas_dir_path: ./sagas
+  hostname: instance1
+  workers_num: 3
+  batch_size: 4
+  empty_batch_delay: 1s
+  lock_timeout: 10s
+
 backoffice:
   port: 8080

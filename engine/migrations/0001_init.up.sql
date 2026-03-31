@@ -17,12 +17,19 @@ CREATE TABLE saga_instance
             )
         ),
 
+    execution_state    TEXT        NOT NULL CHECK (
+        execution_state IN (
+                    'RUNNABLE',
+                    'WAITING_EVENT'
+            )
+        ),
+
     current_step_name  TEXT        NULL,
 
     idempotency_key    TEXT        NOT NULL,
     correlation_id     TEXT        NULL,
 
-    initial_context      JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    initial_context    JSONB       NOT NULL DEFAULT '{}'::jsonb,
     runtime_context    JSONB       NOT NULL DEFAULT '{}'::jsonb,
 
     started_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -35,9 +42,9 @@ CREATE TABLE saga_instance
 
     context_version    BIGINT      NOT NULL DEFAULT 0,
 
-    next_execution_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    locked_till TIMESTAMPTZ NULL,
-    locked_by TEXT NULL
+    next_execution_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    locked_till        TIMESTAMPTZ NULL,
+    locked_by          TEXT        NULL
 );
 
 CREATE TABLE saga_step
