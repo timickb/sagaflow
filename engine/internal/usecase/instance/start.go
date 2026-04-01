@@ -10,7 +10,7 @@ import (
 )
 
 func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (uuid.UUID, error) {
-	_, sagaFound := u.cache.GetSagaView(domain.SagaHeader{
+	_, sagaFound := u.cache.GetSagaDefinition(domain.SagaDefinitionHeader{
 		Name:    dto.SagaName,
 		Version: dto.SagaVersion,
 	})

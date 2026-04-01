@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/pkg/broker"
+	"google.golang.org/grpc"
 )
 
 type Config interface {
@@ -14,11 +15,6 @@ type Config interface {
 	GetBatchSize() int
 	GetEmptyBatchDelay() time.Duration
 	GetLockTimeout() time.Duration
-}
-
-// SagaCache - кэш моделей (описаний) саг
-type SagaCache interface {
-	GetSagaView(header SagaHeader) (*SagaView, bool)
 }
 
 // === USECASES ===
@@ -34,6 +30,16 @@ type InstanceUsecase interface {
 }
 
 // === REPOSITORIES ===
+
+// SagaDefinitionCache - кэш моделей (описаний) саг
+type SagaDefinitionCache interface {
+	GetSagaDefinition(header SagaDefinitionHeader) (*SagaDefinition, bool)
+}
+
+// HandlerCache - кэш соединений для хэндлеров
+type HandlerCache interface {
+	GetHandlerClient(handler *Handler) (*grpc.ClientConn, bool)
+}
 
 // InstanceRepository - репозиторий наг экземплярами саг
 type InstanceRepository interface {

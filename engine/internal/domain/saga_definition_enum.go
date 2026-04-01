@@ -1,4 +1,4 @@
-package dsl
+package domain
 
 type (
 	// StepKind - тип шага

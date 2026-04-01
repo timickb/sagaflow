@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/engine/pkg/utils"
 )
 
@@ -20,16 +21,16 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 			Steps: []RawStep{
 				{
 					Id:      "step1",
-					Kind:    StepKindAction,
+					Kind:    domain.StepKindAction,
 					Timeout: "10s",
 					Handler: &RawHandler{Service: "svc1", Method: "Do"},
 					On:      map[string]string{"committed": "step2"},
 				},
 				{
 					Id:      "step2",
-					Kind:    StepKindTerminal,
+					Kind:    domain.StepKindTerminal,
 					Timeout: "5s",
-					Result:  utils.Ptr(SagaResultCompleted),
+					Result:  utils.Ptr(domain.SagaResultCompleted),
 					On:      map[string]string{},
 				},
 			},
@@ -53,7 +54,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 				Start:   "step1",
 			},
 			Steps: []RawStep{
-				{Id: "step1", Kind: StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
+				{Id: "step1", Kind: domain.StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
 			},
 		}
 
@@ -70,7 +71,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 				Start:   "step1",
 			},
 			Steps: []RawStep{
-				{Id: "step1", Kind: StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
+				{Id: "step1", Kind: domain.StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
 			},
 		}
 
@@ -87,7 +88,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 				Start:   "step1",
 			},
 			Steps: []RawStep{
-				{Id: "step1", Kind: StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
+				{Id: "step1", Kind: domain.StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
 			},
 		}
 
@@ -104,7 +105,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 				Start:   "nonexistent",
 			},
 			Steps: []RawStep{
-				{Id: "step1", Kind: StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
+				{Id: "step1", Kind: domain.StepKindAction, Timeout: "10s", Handler: &RawHandler{Service: "svc", Method: "Do"}},
 			},
 		}
 
@@ -123,7 +124,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 			Steps: []RawStep{
 				{
 					Id:      "step1",
-					Kind:    StepKindAction,
+					Kind:    domain.StepKindAction,
 					Timeout: "10s",
 					Handler: &RawHandler{Service: "svc", Method: "Do"},
 					On:      map[string]string{"committed": "nonexistent"},
@@ -146,7 +147,7 @@ func TestRawSagaDefinition_ValidateAndNormalize(t *testing.T) {
 			Steps: []RawStep{
 				{
 					Id:      "step1",
-					Kind:    StepKindAction,
+					Kind:    domain.StepKindAction,
 					Timeout: "invalid",
 					Handler: &RawHandler{Service: "svc", Method: "Do"},
 					On:      map[string]string{},
@@ -164,7 +165,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("valid action step", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "action1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{"committed": "next1"},
@@ -173,21 +174,21 @@ func TestParseStep(t *testing.T) {
 		step, err := parseStep(raw)
 		require.NoError(t, err)
 		assert.Equal(t, "action1", step.Id)
-		assert.Equal(t, StepKindAction, step.Kind)
+		assert.Equal(t, domain.StepKindAction, step.Kind)
 		assert.Equal(t, 10*time.Second, step.Timeout)
 		assert.NotNil(t, step.Handler)
 		assert.Equal(t, "svc1", step.Handler.Service)
 		assert.Equal(t, "Do", step.Handler.Method)
-		assert.Equal(t, "next1", step.Transitions[OutcomeCommitted])
+		assert.Equal(t, "next1", step.Transitions[domain.OutcomeCommitted])
 	})
 
 	t.Run("valid verify step", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "verify1",
-			Kind:    StepKindVerify,
+			Kind:    domain.StepKindVerify,
 			Timeout: "5s",
 			Verifier: &RawVerifier{
-				Type:       VerifierTypeSql,
+				Type:       domain.VerifierTypeSql,
 				Datasource: "db1",
 				Query:      "SELECT COUNT(*) FROM orders",
 				Checks:     []string{"count > 0"},
@@ -198,15 +199,15 @@ func TestParseStep(t *testing.T) {
 		step, err := parseStep(raw)
 		require.NoError(t, err)
 		assert.Equal(t, "verify1", step.Id)
-		assert.Equal(t, StepKindVerify, step.Kind)
+		assert.Equal(t, domain.StepKindVerify, step.Kind)
 		assert.NotNil(t, step.Verifier)
-		assert.Equal(t, VerifierTypeSql, step.Verifier.Type)
+		assert.Equal(t, domain.VerifierTypeSql, step.Verifier.Type)
 	})
 
 	t.Run("valid reconcile step", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "reconcile1",
-			Kind:    StepKindReconcile,
+			Kind:    domain.StepKindReconcile,
 			Timeout: "30s",
 			Handler: &RawHandler{Service: "svc1", Method: "Reconcile"},
 			On:      map[string]string{"committed": "next1"},
@@ -214,34 +215,34 @@ func TestParseStep(t *testing.T) {
 
 		step, err := parseStep(raw)
 		require.NoError(t, err)
-		assert.Equal(t, StepKindReconcile, step.Kind)
+		assert.Equal(t, domain.StepKindReconcile, step.Kind)
 	})
 
 	t.Run("valid terminal step with COMPENSATED result", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "terminal1",
-			Kind:    StepKindTerminal,
+			Kind:    domain.StepKindTerminal,
 			Timeout: "1s",
-			Result:  utils.Ptr(SagaResultCompensated),
+			Result:  utils.Ptr(domain.SagaResultCompensated),
 			On:      map[string]string{},
 		}
 
 		step, err := parseStep(raw)
 		require.NoError(t, err)
-		assert.Equal(t, StepKindTerminal, step.Kind)
+		assert.Equal(t, domain.StepKindTerminal, step.Kind)
 		assert.NotNil(t, step.Result)
-		assert.Equal(t, SagaResultCompensated, *step.Result)
+		assert.Equal(t, domain.SagaResultCompensated, *step.Result)
 	})
 
 	t.Run("valid step with retry policy", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "retry1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Retry: &RawRetryPolicy{
 				MaxAttempts: 3,
-				Backoff:     RetryBackoffTypeExponential,
+				Backoff:     domain.RetryBackoffTypeExponential,
 				Delay:       "2s",
 			},
 			On: map[string]string{"failed": "retry1", "committed": "next1"},
@@ -251,14 +252,14 @@ func TestParseStep(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, step.Retry)
 		assert.Equal(t, 3, step.Retry.MaxAttempts)
-		assert.Equal(t, RetryBackoffTypeExponential, step.Retry.Backoff)
+		assert.Equal(t, domain.RetryBackoffTypeExponential, step.Retry.Backoff)
 		assert.Equal(t, 2*time.Second, step.Retry.Delay)
 	})
 
 	t.Run("empty step id", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{},
@@ -272,7 +273,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("invalid timeout format", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "invalid",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{},
@@ -286,7 +287,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("zero timeout", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "0s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{},
@@ -300,7 +301,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("action step without handler", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			On:      map[string]string{},
 		}
@@ -313,11 +314,11 @@ func TestParseStep(t *testing.T) {
 	t.Run("action step with unexpected verifier", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Verifier: &RawVerifier{
-				Type: VerifierTypeSql,
+				Type: domain.VerifierTypeSql,
 			},
 			On: map[string]string{},
 		}
@@ -330,10 +331,10 @@ func TestParseStep(t *testing.T) {
 	t.Run("action step with unexpected result", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
-			Result:  utils.Ptr(SagaResultCompleted),
+			Result:  utils.Ptr(domain.SagaResultCompleted),
 			On:      map[string]string{},
 		}
 
@@ -345,7 +346,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("verify step without verifier", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindVerify,
+			Kind:    domain.StepKindVerify,
 			Timeout: "10s",
 			On:      map[string]string{},
 		}
@@ -358,11 +359,11 @@ func TestParseStep(t *testing.T) {
 	t.Run("verify step with unexpected handler", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindVerify,
+			Kind:    domain.StepKindVerify,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Verifier: &RawVerifier{
-				Type: VerifierTypeSql,
+				Type: domain.VerifierTypeSql,
 			},
 			On: map[string]string{},
 		}
@@ -375,12 +376,12 @@ func TestParseStep(t *testing.T) {
 	t.Run("verify step with unexpected result", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindVerify,
+			Kind:    domain.StepKindVerify,
 			Timeout: "10s",
 			Verifier: &RawVerifier{
-				Type: VerifierTypeSql,
+				Type: domain.VerifierTypeSql,
 			},
-			Result: utils.Ptr(SagaResultCompleted),
+			Result: utils.Ptr(domain.SagaResultCompleted),
 			On:     map[string]string{},
 		}
 
@@ -392,7 +393,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("verify step with invalid verifier type", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindVerify,
+			Kind:    domain.StepKindVerify,
 			Timeout: "10s",
 			Verifier: &RawVerifier{
 				Type: "invalid",
@@ -408,7 +409,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("terminal step without result", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindTerminal,
+			Kind:    domain.StepKindTerminal,
 			Timeout: "1s",
 			On:      map[string]string{},
 		}
@@ -421,9 +422,9 @@ func TestParseStep(t *testing.T) {
 	t.Run("terminal step with invalid result", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindTerminal,
+			Kind:    domain.StepKindTerminal,
 			Timeout: "1s",
-			Result:  utils.Ptr(SagaResult("INVALID")),
+			Result:  utils.Ptr(domain.SagaResult("INVALID")),
 			On:      map[string]string{},
 		}
 
@@ -435,9 +436,9 @@ func TestParseStep(t *testing.T) {
 	t.Run("terminal step with unexpected handler", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindTerminal,
+			Kind:    domain.StepKindTerminal,
 			Timeout: "1s",
-			Result:  utils.Ptr(SagaResultCompleted),
+			Result:  utils.Ptr(domain.SagaResultCompleted),
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{},
 		}
@@ -450,11 +451,11 @@ func TestParseStep(t *testing.T) {
 	t.Run("terminal step with unexpected verifier", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindTerminal,
+			Kind:    domain.StepKindTerminal,
 			Timeout: "1s",
-			Result:  utils.Ptr(SagaResultCompleted),
+			Result:  utils.Ptr(domain.SagaResultCompleted),
 			Verifier: &RawVerifier{
-				Type: VerifierTypeSql,
+				Type: domain.VerifierTypeSql,
 			},
 			On: map[string]string{},
 		}
@@ -467,7 +468,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("invalid step outcome", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{"invalid_outcome": "next1"},
@@ -481,7 +482,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("empty next step", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On:      map[string]string{"committed": ""},
@@ -495,7 +496,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("retry with invalid backoff", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Retry: &RawRetryPolicy{
@@ -514,12 +515,12 @@ func TestParseStep(t *testing.T) {
 	t.Run("retry with zero max attempts", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Retry: &RawRetryPolicy{
 				MaxAttempts: 0,
-				Backoff:     RetryBackoffTypeFixed,
+				Backoff:     domain.RetryBackoffTypeFixed,
 				Delay:       "1s",
 			},
 			On: map[string]string{},
@@ -533,12 +534,12 @@ func TestParseStep(t *testing.T) {
 	t.Run("retry with negative max attempts", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Retry: &RawRetryPolicy{
 				MaxAttempts: -1,
-				Backoff:     RetryBackoffTypeFixed,
+				Backoff:     domain.RetryBackoffTypeFixed,
 				Delay:       "1s",
 			},
 			On: map[string]string{},
@@ -552,12 +553,12 @@ func TestParseStep(t *testing.T) {
 	t.Run("retry with invalid delay", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			Retry: &RawRetryPolicy{
 				MaxAttempts: 3,
-				Backoff:     RetryBackoffTypeFixed,
+				Backoff:     domain.RetryBackoffTypeFixed,
 				Delay:       "invalid",
 			},
 			On: map[string]string{},
@@ -571,7 +572,7 @@ func TestParseStep(t *testing.T) {
 	t.Run("all valid step outcomes", func(t *testing.T) {
 		raw := RawStep{
 			Id:      "step1",
-			Kind:    StepKindAction,
+			Kind:    domain.StepKindAction,
 			Timeout: "10s",
 			Handler: &RawHandler{Service: "svc1", Method: "Do"},
 			On: map[string]string{
@@ -592,33 +593,33 @@ func TestParseStep(t *testing.T) {
 
 func TestEnums(t *testing.T) {
 	t.Run("StepOutcome IsValid", func(t *testing.T) {
-		assert.True(t, OutcomeCommitted.IsValid())
-		assert.True(t, OutcomeRejected.IsValid())
-		assert.True(t, OutcomeFailed.IsValid())
-		assert.True(t, OutcomeTimeout.IsValid())
-		assert.True(t, OutcomePassed.IsValid())
-		assert.True(t, OutcomeVerificationFailed.IsValid())
-		assert.False(t, StepOutcome("invalid").IsValid())
+		assert.True(t, domain.OutcomeCommitted.IsValid())
+		assert.True(t, domain.OutcomeRejected.IsValid())
+		assert.True(t, domain.OutcomeFailed.IsValid())
+		assert.True(t, domain.OutcomeTimeout.IsValid())
+		assert.True(t, domain.OutcomePassed.IsValid())
+		assert.True(t, domain.OutcomeVerificationFailed.IsValid())
+		assert.False(t, domain.StepOutcome("invalid").IsValid())
 	})
 
 	t.Run("SagaResult IsValid", func(t *testing.T) {
-		assert.True(t, SagaResultCompleted.IsValid())
-		assert.True(t, SagaResultFailed.IsValid())
-		assert.True(t, SagaResultCompensated.IsValid())
-		assert.True(t, SagaResultInconsistent.IsValid())
-		assert.False(t, SagaResult("invalid").IsValid())
+		assert.True(t, domain.SagaResultCompleted.IsValid())
+		assert.True(t, domain.SagaResultFailed.IsValid())
+		assert.True(t, domain.SagaResultCompensated.IsValid())
+		assert.True(t, domain.SagaResultInconsistent.IsValid())
+		assert.False(t, domain.SagaResult("invalid").IsValid())
 	})
 
 	t.Run("VerifierType IsValid", func(t *testing.T) {
-		assert.True(t, VerifierTypeSql.IsValid())
-		assert.True(t, VerifierTypeComposite.IsValid())
-		assert.True(t, VerifierTypeApi.IsValid())
-		assert.False(t, VerifierType("invalid").IsValid())
+		assert.True(t, domain.VerifierTypeSql.IsValid())
+		assert.True(t, domain.VerifierTypeComposite.IsValid())
+		assert.True(t, domain.VerifierTypeApi.IsValid())
+		assert.False(t, domain.VerifierType("invalid").IsValid())
 	})
 
 	t.Run("RetryBackoffType IsValid", func(t *testing.T) {
-		assert.True(t, RetryBackoffTypeFixed.IsValid())
-		assert.True(t, RetryBackoffTypeExponential.IsValid())
-		assert.False(t, RetryBackoffType("invalid").IsValid())
+		assert.True(t, domain.RetryBackoffTypeFixed.IsValid())
+		assert.True(t, domain.RetryBackoffTypeExponential.IsValid())
+		assert.False(t, domain.RetryBackoffType("invalid").IsValid())
 	})
 }

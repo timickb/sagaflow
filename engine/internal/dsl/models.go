@@ -1,46 +1,44 @@
 package dsl
 
-import "time"
+import "github.com/timickb/sagaflow/engine/internal/domain"
 
-type Definition struct {
-	Name        string
-	Version     int
-	StartStepId string
-
-	Steps    []*Step
-	StepById map[string]*Step
+type RawSagaDefinition struct {
+	Saga  RawSagaMeta `yaml:"saga"`
+	Steps []RawStep   `yaml:"steps"`
 }
 
-type Step struct {
-	Id   string
-	Kind StepKind
-
-	Handler  *Handler
-	Verifier *Verifier
-	Result   *SagaResult
-
-	Retry   *RetryPolicy
-	Timeout time.Duration
-
-	CompensateStepId string
-
-	Transitions map[StepOutcome]string
+type RawSagaMeta struct {
+	Name    string `yaml:"name"`
+	Version int    `yaml:"version"`
+	Start   string `yaml:"start"`
 }
 
-type Handler struct {
-	Service string
-	Method  string
+type RawStep struct {
+	Id         string             `yaml:"id"`
+	Kind       domain.StepKind    `yaml:"kind"`
+	Handler    *RawHandler        `yaml:"handler,omitempty"`
+	Verifier   *RawVerifier       `yaml:"verifier,omitempty"`
+	Retry      *RawRetryPolicy    `yaml:"retry,omitempty"`
+	Timeout    string             `yaml:"timeout,omitempty"`
+	Compensate *string            `yaml:"compensate,omitempty"`
+	Result     *domain.SagaResult `yaml:"result,omitempty"`
+	On         map[string]string  `yaml:"on,omitempty"`
 }
 
-type Verifier struct {
-	Type       VerifierType
-	Datasource string
-	Query      string
-	Checks     []string
+type RawHandler struct {
+	Service string `yaml:"service"`
+	Method  string `yaml:"method"`
 }
 
-type RetryPolicy struct {
-	MaxAttempts int
-	Backoff     RetryBackoffType
-	Delay       time.Duration
+type RawVerifier struct {
+	Type       domain.VerifierType `yaml:"type"`
+	Datasource string              `yaml:"datasource,omitempty"`
+	Query      string              `yaml:"query,omitempty"`
+	Checks     []string            `yaml:"checks,omitempty"`
+}
+
+type RawRetryPolicy struct {
+	MaxAttempts int                     `yaml:"max_attempts"`
+	Backoff     domain.RetryBackoffType `yaml:"backoff,omitempty"`
+	Delay       string                  `yaml:"delay,omitempty"`
 }

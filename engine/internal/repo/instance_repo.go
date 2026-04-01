@@ -40,9 +40,7 @@ func (r *instanceRepo) TakeBatch(
     		FOR UPDATE SKIP LOCKED
 		)
 		UPDATE saga_instance s
-		SET locked_till = now() + $2::interval,
-    		locked_by = $3,
-    		updated_at = now()
+		SET locked_till = $2, locked_by = $3, updated_at = now()
 		FROM batch
 		WHERE s.saga_id = batch.saga_id
 		RETURNING s.*;`,

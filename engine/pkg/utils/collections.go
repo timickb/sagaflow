@@ -33,3 +33,12 @@ func Contains[T comparable](slice []T, item T) bool {
 	}
 	return false
 }
+
+func Find[T any](slice []*T, fn func(*T) bool) *T {
+	for _, item := range slice {
+		if fn(item) {
+			return item
+		}
+	}
+	return nil
+}

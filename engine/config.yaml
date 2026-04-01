@@ -1,8 +1,8 @@
 postgres:
   host: localhost
-  user: sagaflow
-  name: sagaflow
-  password: qwerty
+  user: postgres
+  password: postgres
+  name: engine
   port: 5445
   ssl_mode: disable
   max_open_connections: 20

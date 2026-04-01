@@ -1,0 +1,91 @@
+saga:
+  name: Process Order
+  version: 2
+  start: ReserveInventory
+
+steps:
+  - id: ReserveInventory
+    kind: action
+    timeout: 2s
+    compensate: ReleaseInventory
+    retry:
+      max_attempts: 5
+      delay: 2s
+      backoff: fixed
+    handler:
+      service: warehouse
+      method: ReserveItem
+    on:
+      committed: ChargePayment
+      failed: Fail
+      rejected: Fail
+      timeout: ReleaseInventory
+
+
+  - id: ChargePayment
+    kind: action
+    timeout: 10s
+    handler:
+      service: payments
+      method: Capture
+    on:
+      committed: VerifyOrderOLTP
+      rejected: ReleaseInventory
+      failed: ReleaseInventory
+      timeout: ReleaseInventory
+
+  - id: ReleaseInventory
+    kind: compensate
+    timeout: 5s
+    retry:
+      max_attempts: 5
+      delay: 2s
+      backoff: fixed
+    handler:
+      service: warehouse
+      method: Release
+    on:
+      committed: Rollback
+      rejected: Fail
+      failed: Fail
+      timeout: Fail
+
+  - id: VerifyOrderOLTP
+    kind: verify
+    timeout: 5s
+    verifier:
+      type: sql
+      datasource: warehouse_postgres
+      query: |
+        SELECT count(*)
+        FROM reservations
+        WHERE order_id = :order_id
+          AND status = 'ACTIVE'
+      expect:
+        equals: 1
+
+  - id: VerifyAnalyticsMaterialization
+    kind: verify
+    timeout: 5s
+    verifier:
+      type: sql
+      datasource: clickhouse
+      query: |
+        SELECT count()
+        FROM fct_orders
+        WHERE order_id = :order_id
+      expect:
+        equals: 1
+
+  - id: Success
+    kind: terminal
+    result: COMPLETED
+
+  - id: Rollback
+    kind: terminal
+    result: COMPENSATED
+
+  - id: Fail
+    kind: terminal
+    result: FAILED
+

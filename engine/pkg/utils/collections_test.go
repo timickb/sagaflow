@@ -170,3 +170,82 @@ func TestContains(t *testing.T) {
 		})
 	}
 }
+
+func TestFind(t *testing.T) {
+	type user struct {
+		ID   int
+		Name string
+	}
+
+	tests := []struct {
+		name      string
+		input     []*user
+		predicate func(*user) bool
+		expected  *user
+	}{
+		{
+			name: "find existing item",
+			input: []*user{
+				{ID: 1, Name: "Alice"},
+				{ID: 2, Name: "Bob"},
+				{ID: 3, Name: "Charlie"},
+			},
+			predicate: func(u *user) bool {
+				return u.ID == 2
+			},
+			expected: &user{ID: 2, Name: "Bob"},
+		},
+		{
+			name: "not found",
+			input: []*user{
+				{ID: 1, Name: "Alice"},
+				{ID: 2, Name: "Bob"},
+			},
+			predicate: func(u *user) bool {
+				return u.ID == 10
+			},
+			expected: nil,
+		},
+		{
+			name:  "empty slice",
+			input: []*user{},
+			predicate: func(u *user) bool {
+				return u.ID == 1
+			},
+			expected: nil,
+		},
+		{
+			name: "returns first matching item",
+			input: []*user{
+				{ID: 1, Name: "Alice"},
+				{ID: 2, Name: "Bob"},
+				{ID: 2, Name: "Bob Duplicate"},
+			},
+			predicate: func(u *user) bool {
+				return u.ID == 2
+			},
+			expected: &user{ID: 2, Name: "Bob"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Find(tt.input, tt.predicate)
+
+			if tt.expected == nil {
+				if result != nil {
+					t.Fatalf("expected nil, got %+v", *result)
+				}
+				return
+			}
+
+			if result == nil {
+				t.Fatalf("expected %+v, got nil", *tt.expected)
+			}
+
+			if *result != *tt.expected {
+				t.Fatalf("expected %+v, got %+v", *tt.expected, *result)
+			}
+		})
+	}
+}

@@ -25,7 +25,8 @@ type Builder struct {
 	db              *db.Database
 	consumer        *broker.KafkaStepResultReader
 	runner          *worker.Runner
-	sagasCache      domain.SagaCache
+	sagasCache      domain.SagaDefinitionCache
+	handlersCache   domain.HandlerCache
 	instanceUsecase domain.InstanceUsecase
 }
 
@@ -33,7 +34,7 @@ func NewBuilder(cfg *config.Config) (*Builder, error) {
 	b := &Builder{cfg: cfg}
 	b.buildContext()
 
-	if err := b.buildSagaCache(); err != nil {
+	if err := b.buildSagaDefinitionCache(); err != nil {
 		return nil, err
 	}
 	if err := b.buildDB(); err != nil {
@@ -93,7 +94,7 @@ func (b *Builder) buildConsumer() error {
 	return nil
 }
 
-func (b *Builder) buildSagaCache() error {
+func (b *Builder) buildSagaDefinitionCache() error {
 	cache, err := dsl.NewCache(b.cfg.Runner.SagasDirPath)
 	if err != nil {
 		return fmt.Errorf("create saga cache instance: %w", err)
@@ -102,8 +103,13 @@ func (b *Builder) buildSagaCache() error {
 	return nil
 }
 
+func (b *Builder) buildHandlerCache() error {
+	// todo: implement
+	panic("implement me")
+}
+
 func (b *Builder) buildRunner() error {
-	b.runner = worker.NewRunner(b.cfg.Runner, repo.NewInstanceRepo(b.db), b.sagasCache)
+	b.runner = worker.NewRunner(b.cfg.Runner, repo.NewInstanceRepo(b.db), b.sagasCache, b.handlersCache)
 	return nil
 }
 
