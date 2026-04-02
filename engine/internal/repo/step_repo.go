@@ -37,3 +37,29 @@ func (r *stepRepo) GetByInstanceAndName(
 	}
 	return step.ToDomain(), true, nil
 }
+
+// Create - создать шаг экземпляра, ожидающий выполнения
+func (r *stepRepo) Create(ctx context.Context, dto *domain.StepCreateDto) error {
+	err := r.db.WithTxSupport(ctx).Create(dbstruct.NewSagaStep(dto)).Error
+	if err != nil {
+		return fmt.Errorf("create saga step: %w", err)
+	}
+	return nil
+}
+
+// Update - обновить шаг
+func (r *stepRepo) Update(ctx context.Context, dto *domain.StepUpdateDto) error {
+	updateMap := dbstruct.NewSagaStepUpdatesMap(dto)
+	step := &dbstruct.DBSagaStep{
+		SagaId:   dto.InstanceId,
+		StepName: dto.StepName,
+	}
+	query := r.db.WithTxSupport(ctx).Model(step).Updates(updateMap)
+	if query.Error != nil {
+		return fmt.Errorf("update saga step: %w", query.Error)
+	}
+	if query.RowsAffected == 0 {
+		return fmt.Errorf("update saga step: step (%v, %s) not found", dto.InstanceId, dto.StepName)
+	}
+	return nil
+}

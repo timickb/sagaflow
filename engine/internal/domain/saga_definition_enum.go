@@ -1,5 +1,7 @@
 package domain
 
+import "github.com/timickb/sagaflow/engine/pkg/utils"
+
 type (
 	// StepKind - тип шага
 	StepKind string
@@ -88,5 +90,26 @@ func (r RetryBackoffType) IsValid() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// ToInstanceStatus - в какой статус нужно перевести экземпляр, если тип следующего шага = StepKind?
+func (s StepKind) ToInstanceStatus(currentStatus InstanceStatus) (newStatus *InstanceStatus) {
+	switch s {
+	case StepKindAction:
+		return utils.Ptr(InstanceStatusRunning)
+	case StepKindCompensate:
+		return utils.Ptr(InstanceStatusCompensating)
+	case StepKindVerify, StepKindReconcile:
+		return utils.Ptr(InstanceStatusVerifying)
+	case StepKindTerminal:
+		switch currentStatus {
+		case InstanceStatusCompensating:
+			return utils.Ptr(InstanceStatusCompensated)
+		default:
+			return utils.Ptr(InstanceStatusCompleted)
+		}
+	default:
+		return nil
 	}
 }

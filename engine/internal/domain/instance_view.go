@@ -11,7 +11,8 @@ type InstanceView struct {
 	SagaName    string
 	SagaVersion int
 
-	Status InstanceStatus
+	Status         InstanceStatus
+	ExecutionState InstanceExecutionState
 
 	InitialContext InstanceContext
 	RuntimeContext InstanceContext

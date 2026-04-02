@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/timickb/sagaflow/engine/pkg/broker"
 	"google.golang.org/grpc"
 )
 
-type Config interface {
+// RunnerConfig - конфигурация обработчика экземпляров
+type RunnerConfig interface {
 	GetHostname() string
 	GetWorkersNum() int
 	GetBatchSize() int
@@ -26,10 +26,13 @@ type InstanceUsecase interface {
 	GetFeedCount(ctx context.Context, dto *GetFeedDto) (int64, error)
 	GetFeed(ctx context.Context, dto *GetFeedDto) (*InstancesFeed, error)
 	GetFeedNext(ctx context.Context, paginationToken string) (*InstancesFeed, error)
-	ApplyStepResult(ctx context.Context, event *broker.SagaStepResultEvent) error
 }
 
 // === REPOSITORIES ===
+
+type Transactor interface {
+	Transaction(ctx context.Context, fn func(ctx context.Context) error) error
+}
 
 // SagaDefinitionCache - кэш моделей (описаний) саг
 type SagaDefinitionCache interface {
@@ -49,10 +52,21 @@ type InstanceRepository interface {
 		lockExpire time.Duration,
 		workerId string,
 	) ([]*InstanceView, error)
+	GetForEvent(
+		ctx context.Context,
+		id uuid.UUID,
+		lockExpire time.Duration,
+		workerId string,
+	) (*InstanceView, error)
+	MakeTransition(ctx context.Context, dto *InstanceTransitionDto) error
+	RemoveLock(ctx context.Context, id uuid.UUID) error
 	Create(ctx context.Context, dto *InstanceStartDto) (uuid.UUID, error)
+	SetFailed(ctx context.Context, id uuid.UUID, dto *InstanceFailDto) error
 }
 
 // StepRepository - репозиторий над шагами саги
 type StepRepository interface {
 	GetByInstanceAndName(ctx context.Context, instanceId uuid.UUID, stepName string) (*StepView, bool, error)
+	Create(ctx context.Context, dto *StepCreateDto) error
+	Update(ctx context.Context, dto *StepUpdateDto) error
 }

@@ -5,7 +5,7 @@ type InstanceExecutionState string
 
 const (
 	// InstanceExecutionStateRunnable - можно выполнять следующий шаг
-	InstanceExecutionStateRunnable = "RUNNABLE"
+	InstanceExecutionStateRunnable InstanceExecutionState = "RUNNABLE"
 	// InstanceExecutionStateWaitEvent - инстанс ожидает события от сервиса-обработчика
-	InstanceExecutionStateWaitEvent = "WAIT_EVENT"
+	InstanceExecutionStateWaitEvent InstanceExecutionState = "WAIT_EVENT"
 )

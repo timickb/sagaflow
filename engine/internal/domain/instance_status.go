@@ -22,3 +22,13 @@ const (
 	// Требует ручного разбора.
 	InstanceStatusInconsistent InstanceStatus = "INCONSISTENT"
 )
+
+// IsTerminal - является ли статус терминальным (конечным)
+func (s InstanceStatus) IsTerminal() bool {
+	switch s {
+	case InstanceStatusCompleted, InstanceStatusFailed, InstanceStatusCompensated, InstanceStatusInconsistent:
+		return true
+	default:
+		return false
+	}
+}

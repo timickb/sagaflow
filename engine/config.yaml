@@ -29,4 +29,5 @@ runner:
   lock_timeout: 10s
 
 backoffice:
+  enabled: true
   port: 8080

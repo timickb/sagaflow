@@ -8,6 +8,7 @@ import (
 	"github.com/timickb/sagaflow/engine/internal/domain"
 )
 
+// DBSagaInstance - проекция таблицы saga_instance
 type DBSagaInstance struct {
 	SagaId      uuid.UUID
 	SagaName    string
@@ -37,6 +38,7 @@ type DBSagaInstance struct {
 	LockedBy        *string
 }
 
+// NewSagaInstance - создать экземпляр саги, ожидающий начала выполнения
 func NewSagaInstance(id uuid.UUID, dto *domain.InstanceStartDto) *DBSagaInstance {
 	var idempotencyKey string
 	if dto.IdempotencyKey == nil {
@@ -68,8 +70,9 @@ func (si *DBSagaInstance) ToDomain() *domain.InstanceView {
 		SagaName:         si.SagaName,
 		SagaVersion:      si.SagaVersion,
 		Status:           si.Status,
-		InitialContext:   domain.NewJsonInstanceContext(si.InitialContext),
-		RuntimeContext:   domain.NewJsonInstanceContext(si.RuntimeContext),
+		ExecutionState:   si.ExecutionState,
+		InitialContext:   domain.NewJsonInstanceContextFromRaw(si.InitialContext),
+		RuntimeContext:   domain.NewJsonInstanceContextFromRaw(si.RuntimeContext),
 		ContextVersion:   si.ContextVersion,
 		IdempotencyKey:   si.IdempotencyKey,
 		CurrentStepName:  si.CurrentStepName,
@@ -80,4 +83,36 @@ func (si *DBSagaInstance) ToDomain() *domain.InstanceView {
 		UpdatedAt:        si.UpdatedAt,
 		FinishedAt:       si.FinishedAt,
 	}
+}
+
+func NewSagaInstanceMakeTransitionUpdateMap(dto *domain.InstanceTransitionDto) map[string]interface{} {
+	now := time.Now()
+	result := map[string]interface{}{
+		"updated_at":        now,
+		"locked_till":       (*time.Time)(nil),
+		"locked_by":         (*string)(nil),
+		"current_step_name": dto.NextStepName,
+	}
+	if dto.Status != nil {
+		result["status"] = *dto.Status
+		if dto.Status.IsTerminal() {
+			result["finished_at"] = now
+		}
+	}
+	if dto.ExecutionState != nil {
+		result["execution_state"] = *dto.ExecutionState
+	}
+	if dto.RuntimeContext != nil {
+		result["runtime_context"] = dto.RuntimeContext.GetRaw()
+	}
+	if dto.ErrCode != nil {
+		result["last_error_code"] = *dto.ErrCode
+	}
+	if dto.ErrMessage != nil {
+		result["last_error_message"] = *dto.ErrMessage
+	}
+	if dto.NextExecutionAt != nil {
+		result["next_execution_at"] = *dto.NextExecutionAt
+	}
+	return result
 }

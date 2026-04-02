@@ -109,7 +109,14 @@ func (b *Builder) buildHandlerCache() error {
 }
 
 func (b *Builder) buildRunner() error {
-	b.runner = worker.NewRunner(b.cfg.Runner, repo.NewInstanceRepo(b.db), b.sagasCache, b.handlersCache)
+	b.runner = worker.NewRunner(
+		b.cfg.Runner,
+		repo.NewInstanceRepo(b.db),
+		repo.NewStepRepo(b.db),
+		db.NewTransactor(b.db),
+		b.sagasCache,
+		b.handlersCache,
+	)
 	return nil
 }
 
@@ -128,7 +135,7 @@ func (b *Builder) Start() error {
 			event.Status,
 			event.Ref.ServiceName,
 		)
-		if err := b.instanceUsecase.ApplyStepResult(ctx, event); err != nil {
+		if err := b.runner.ApplyStepResult(ctx, event); err != nil {
 			return fmt.Errorf("apply step result: %w", err)
 		}
 		return nil

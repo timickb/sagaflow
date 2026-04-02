@@ -1,5 +1,6 @@
 package config
 
 type BackofficeConfig struct {
-	Port int `yaml:"port"`
+	Enabled bool `json:"enabled"`
+	Port    int  `yaml:"port"`
 }
