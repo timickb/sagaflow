@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/broker"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/broker"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 // ApplyStepResult - обработать событие завершения обработки шага action или compensate сервисом.
@@ -96,6 +96,9 @@ func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResu
 		return err
 	case broker.SagaStepStatusFailed:
 		result, err = r.handleFailedTransition(event, sagaDef, currentStepDef, instance, currentStep)
+		return err
+	case broker.SagaStepStatusRejected:
+		result, err = r.handleRejectedTransition(event, sagaDef, currentStepDef, instance, currentStep)
 		return err
 	default:
 		result = &eventHandleResult{

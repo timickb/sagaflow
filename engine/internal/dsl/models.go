@@ -3,14 +3,27 @@ package dsl
 import "github.com/timickb/sagaflow/engine/internal/domain"
 
 type RawSagaDefinition struct {
-	Saga  RawSagaMeta `yaml:"saga"`
-	Steps []RawStep   `yaml:"steps"`
+	Saga   RawSagaMeta             `yaml:"saga"`
+	Inputs map[string]RawInputSpec `yaml:"inputs"`
+	Steps  []RawStep               `yaml:"steps"`
 }
 
 type RawSagaMeta struct {
-	Name    string `yaml:"name"`
-	Version int    `yaml:"version"`
-	Start   string `yaml:"start"`
+	Name           string `yaml:"name"`
+	Version        int    `yaml:"version"`
+	Start          string `yaml:"start"`
+	IdempotencyKey string `yaml:"idempotency_key"`
+}
+
+type RawInputSpec struct {
+	Type        string                  `yaml:"type"`
+	Required    bool                    `yaml:"required,omitempty"`
+	Description string                  `yaml:"description,omitempty"`
+	Default     interface{}             `yaml:"default,omitempty"`
+	Nullable    bool                    `yaml:"nullable,omitempty"`
+	Enum        []interface{}           `yaml:"enum,omitempty"`
+	Properties  map[string]RawInputSpec `yaml:"properties,omitempty"`
+	Items       *RawInputSpec           `yaml:"items,omitempty"`
 }
 
 type RawStep struct {

@@ -73,7 +73,6 @@ func (r *KafkaStepResultReader) Start(ctx context.Context, handler StepResultHan
 			}
 			continue
 		}
-
 		if err = handler(ctx, event); err != nil {
 			// не коммитим offset, подождем ретрая
 			return fmt.Errorf("handle saga.step.result event: %w", err)

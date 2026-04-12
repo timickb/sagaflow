@@ -1,0 +1,32 @@
+version: v1
+build:
+  excludes: []
+lint:
+  use:
+    - MINIMAL
+    - COMMENT_FIELD
+    - COMMENT_MESSAGE
+    - COMMENT_RPC
+    - COMMENT_SERVICE
+    - PACKAGE_NO_IMPORT_CYCLE
+    - ENUM_PASCAL_CASE
+    - ENUM_VALUE_UPPER_SNAKE_CASE
+    - FIELD_LOWER_SNAKE_CASE
+    - MESSAGE_PASCAL_CASE
+    - ONEOF_LOWER_SNAKE_CASE
+    - PACKAGE_LOWER_SNAKE_CASE
+    - RPC_PASCAL_CASE
+    - SERVICE_PASCAL_CASE
+    - PACKAGE_SAME_GO_PACKAGE
+    - PACKAGE_SAME_JAVA_MULTIPLE_FILES
+    - PACKAGE_SAME_JAVA_PACKAGE
+    - ENUM_FIRST_VALUE_ZERO
+    - ENUM_NO_ALLOW_ALIAS
+    - ENUM_ZERO_VALUE_SUFFIX
+  ignore:
+    - google
+  enum_zero_value_suffix: _UNSPECIFIED
+  allow_comment_ignores: true
+breaking:
+  use:
+    - FILE

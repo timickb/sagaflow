@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package sagaflow.v1;
+
+option go_package = "github.com/timickb/sagaflow/proto/gen/go/sagaflow;sagaflow";
+
+message StepExecutionMeta {
+  string saga_id = 1;
+  string step_id = 2;
+  string worker = 3;
+  int32 attempt = 4;
+  string idempotency_key = 5;
+}

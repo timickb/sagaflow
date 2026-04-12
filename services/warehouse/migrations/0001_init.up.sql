@@ -76,3 +76,18 @@ create table if not exists reservations
 
     unique (order_id, product_id)
 );
+
+create table if not exists sagaflow_events
+(
+    id            uuid        not null primary key,
+    topic         text        not null,
+    key           text        not null, -- saga_id для партиционирования
+    payload       jsonb       not null,
+    status        text        not null default 'PENDING',
+    attempts      integer     not null default 0,
+    created_at    timestamptz not null default now(),
+    published_at  timestamptz
+);
+
+create index if not exists idx_outbox_events_status on sagaflow_events(status);
+create index if not exists idx_outbox_events_topic on sagaflow_events(topic);

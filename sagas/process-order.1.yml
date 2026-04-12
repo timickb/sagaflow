@@ -1,11 +1,42 @@
 saga:
   name: Process Order
   version: 1
+  description: Оформление заказа в интернет-магазине
   start: ReserveInventory
+  idempotency_key: ${input.order_id}
+
+inputs:
+  order_id:
+    type: string
+    required: true
+    description: ID заказа, UUID (= ключ идемпотентности для экземпляра)
+  user_id:
+    type: string
+    required: true
+    description: ID пользователя, оформляющего заказ
+  amount:
+    type: integer
+    required: true
+    description: Сумма заказа
+  items:
+    type: array
+    required: true
+    items:
+      type: object
+      properties:
+        sku:
+          type: string
+          required: true
+          description: SKU товара на складе
+        quantity:
+          type: integer
+          required: true
+          description: Количество товара
 
 steps:
   - id: ReserveInventory
     kind: action
+    description: Зарезервировать товар на складе
     timeout: 5s
     compensate: ReleaseInventory
     retry:
@@ -15,19 +46,28 @@ steps:
     handler:
       service: warehouse
       method: Reserve
+    input:
+      items: ${input.items}
+      order_id: ${input.order_id}
+    output:
+      runtime.reservation_id: ${result.reservation_id}
     on:
       committed: ChargePayment
       failed: Fail
       rejected: Fail
       timeout: ReleaseInventory
 
-
   - id: ChargePayment
     kind: action
+    description: Сохранить сущность заказа и списать деньги с баланса пользователя
     timeout: 10s
     handler:
       service: payments
       method: Capture
+    input:
+      items: ${input.items}
+      user_id: ${input.user_id}
+      order_id: ${input.order_id}
     on:
       committed: VerifyOrderOLTP
       rejected: ReleaseInventory
@@ -36,6 +76,7 @@ steps:
 
   - id: ReleaseInventory
     kind: compensate
+    description: Снять бронь с товаров на складе
     timeout: 5s
     retry:
       max_attempts: 5
@@ -44,6 +85,8 @@ steps:
     handler:
       service: warehouse
       method: Release
+    input:
+      order_id: ${input.user_id}
     on:
       committed: Rollback
       rejected: Fail
@@ -59,10 +102,14 @@ steps:
       query: |
         SELECT count(*)
         FROM reservations
-        WHERE order_id = :order_id
+        WHERE order_id = ${input.order_id}
           AND status = 'ACTIVE'
       expect:
         equals: 1
+    on:
+      passed: VerifyAnalyticsMaterialization
+      failed: ReleaseInventory
+      timeout: Fail
 
   - id: VerifyAnalyticsMaterialization
     kind: verify
@@ -76,6 +123,30 @@ steps:
         WHERE order_id = :order_id
       expect:
         equals: 1
+    on:
+      passed: Success
+      failed: ReconcileAnalyticsMaterialization
+      timeout: ReconcileAnalyticsMaterialization
+      inconclusive: ReconcileAnalyticsMaterialization
+
+  - id: ReconcileAnalyticsMaterialization
+    kind: reconcile
+    description: Принудительно пересобрать аналитическую проекцию заказа
+    timeout: 10s
+    retry:
+      max_attempts: 3
+      delay: 5s
+      backoff: fixed
+    handler:
+      service: analytics
+      method: RebuildOrderProjection
+      input:
+        order_id: ${input.order_id}
+      on:
+        committed: VerifyAnalyticsMaterialization
+        rejected: Inconsistent
+        failed: Inconsistent
+        timeout: Inconsistent
 
   - id: Success
     kind: terminal
@@ -88,4 +159,8 @@ steps:
   - id: Fail
     kind: terminal
     result: FAILED
+
+  - id: Inconsistent
+    kind: terminal
+    result: INCONSISTENT
 

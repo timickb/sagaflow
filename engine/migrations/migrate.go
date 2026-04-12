@@ -3,7 +3,7 @@ package migrations
 import (
 	"embed"
 
-	"github.com/timickb/sagaflow/engine/pkg/db"
+	"github.com/timickb/sagaflow/lib/db"
 )
 
 //go:embed *.sql

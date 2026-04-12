@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/timickb/sagaflow/engine/pkg/broker"
-	"github.com/timickb/sagaflow/engine/pkg/db"
+	"github.com/timickb/sagaflow/lib/broker"
+	"github.com/timickb/sagaflow/lib/db"
 	"gopkg.in/yaml.v3"
 )
 

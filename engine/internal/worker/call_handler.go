@@ -5,6 +5,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/domain"
+	"github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 )
 
 func (r *Runner) callHandler(ctx context.Context, instance *domain.InstanceView, stepDef *domain.DefinitionStep) {
@@ -14,6 +15,13 @@ func (r *Runner) callHandler(ctx context.Context, instance *domain.InstanceView,
 			instance.SagaName, instance.SagaId, stepDef.Id,
 		)
 		return
+	}
+	meta := &sagaflow.StepExecutionMeta{
+		SagaId:         instance.SagaId.String(),
+		StepId:         stepDef.Id,
+		Worker:         stepDef.Handler.Method,
+		Attempt:        0,  // todo
+		IdempotencyKey: "", // todo
 	}
 	// lookup handler
 	//conn, found := r.handlerCache.GetHandlerClient(stepDef.Handler)
