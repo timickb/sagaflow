@@ -3,7 +3,7 @@ package backoffice
 import (
 	api "github.com/timickb/sagaflow/engine/api/backoffice"
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 func mapGetFeedDtoFromApi(src api.GetFeedRequestObject) *domain.GetFeedDto {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 func TestCache_NewCache(t *testing.T) {

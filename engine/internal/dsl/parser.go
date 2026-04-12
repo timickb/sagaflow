@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 // ValidateAndNormalize - валидировать модель саги и преобразовать в доменную модель

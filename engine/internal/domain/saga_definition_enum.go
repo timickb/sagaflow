@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/timickb/sagaflow/engine/pkg/utils"
+import "github.com/timickb/sagaflow/lib/utils"
 
 type (
 	// StepKind - тип шага

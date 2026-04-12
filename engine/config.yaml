@@ -28,6 +28,15 @@ runner:
   empty_batch_delay: 1s
   lock_timeout: 10s
 
+handlers:
+  call_timeout: 5s
+  endpoints:
+    - warehouse:50051
+    - payments:50052
+    - shop:50053
+    - id:50054
+    - notifications:50055
+
 backoffice:
   enabled: true
   port: 8080

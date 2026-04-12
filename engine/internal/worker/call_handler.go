@@ -16,7 +16,7 @@ func (r *Runner) callHandler(ctx context.Context, instance *domain.InstanceView,
 		)
 		return
 	}
-	meta := &sagaflow.StepExecutionMeta{
+	_ = &sagaflow.StepExecutionMeta{
 		SagaId:         instance.SagaId.String(),
 		StepId:         stepDef.Id,
 		Worker:         stepDef.Handler.Method,

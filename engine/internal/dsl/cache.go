@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 	"gopkg.in/yaml.v3"
 )
 

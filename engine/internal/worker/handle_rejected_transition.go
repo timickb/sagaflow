@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/broker"
+	"github.com/timickb/sagaflow/lib/broker"
 )
 
 // handleRejectedTransition Обработать переход on.rejected для шагов типа action/compensate

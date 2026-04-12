@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/config"
 	"github.com/timickb/sagaflow/engine/internal/infra"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 func main() {

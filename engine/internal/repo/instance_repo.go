@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/engine/internal/repo/dbstruct"
-	"github.com/timickb/sagaflow/engine/pkg/db"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/db"
+	"github.com/timickb/sagaflow/lib/utils"
 	"gorm.io/gorm/clause"
 )
 

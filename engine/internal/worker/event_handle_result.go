@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 type eventHandleResult struct {

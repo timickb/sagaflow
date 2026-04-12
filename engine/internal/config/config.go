@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -10,12 +9,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type validatable interface {
+	Validate() error
+}
+
 // Config - конфигурация сервиса
 type Config struct {
 	Postgres   *db.PostgresConfig  `yaml:"postgres" env:"POSTGRES"`
 	Kafka      *broker.KafkaConfig `yaml:"kafka" env:"KAFKA"`
 	Runner     *RunnerConfig       `yaml:"runner" env:"RUNNER"`
 	Backoffice *BackofficeConfig   `yaml:"backoffice" env:"BACKOFFICE"`
+	Handlers   *HandlersConfig     `yaml:"handlers" env:"HANDLERS"`
 }
 
 // NewFromFile - создать конфиг из YAML файла
@@ -37,29 +41,25 @@ func NewFromFile(path string) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.Postgres == nil {
-		return errors.New("postgres configuration is required")
-	} else {
-		if err := c.Postgres.Validate(); err != nil {
-			return err
+	checks := []struct {
+		name string
+		cfg  validatable
+	}{
+		{"postgres", c.Postgres},
+		{"kafka", c.Kafka},
+		{"runner", c.Runner},
+		{"backoffice", c.Backoffice},
+		{"handlers", c.Handlers},
+	}
+
+	for _, check := range checks {
+		if check.cfg == nil {
+			return fmt.Errorf("%s configuration is required", check.name)
+		}
+		if err := check.cfg.Validate(); err != nil {
+			return fmt.Errorf("%s: %w", check.name, err)
 		}
 	}
-	if c.Kafka == nil {
-		return errors.New("kafka configuration is required")
-	} else {
-		if err := c.Kafka.Validate(); err != nil {
-			return err
-		}
-	}
-	if c.Runner == nil {
-		return errors.New("runner configuration is required")
-	} else {
-		if err := c.Runner.Validate(); err != nil {
-			return err
-		}
-	}
-	if c.Backoffice == nil {
-		return errors.New("backoffice configuration is required")
-	}
+
 	return nil
 }

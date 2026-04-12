@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/domain"
-	"github.com/timickb/sagaflow/engine/pkg/broker"
-	"github.com/timickb/sagaflow/engine/pkg/utils"
+	"github.com/timickb/sagaflow/lib/broker"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 // handleCommittedTransition Обработать переход on.committed для шагов типа action/compensate
