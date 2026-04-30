@@ -1,7 +1,8 @@
 package domain
 
-// InstanceFailDto - данные для перевода экземпляра в статус FAILED
-type InstanceFailDto struct {
-	ErrCode    string
+// InstanceTerminateDto - данные для перевода экземпляра в терминальный статус
+type InstanceTerminateDto struct {
+	Status     InstanceStatus
+	ErrCode    *string
 	ErrMessage *string
 }

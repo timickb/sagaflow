@@ -2,12 +2,46 @@ syntax = "proto3";
 
 package sagaflow.v1;
 
+import "sagaflow/types.proto";
+
 option go_package = "github.com/timickb/sagaflow/proto/gen/go/sagaflow;sagaflow";
 
-message StepExecutionMeta {
-  string saga_id = 1;
-  string step_id = 2;
-  string worker = 3;
-  int32 attempt = 4;
-  string idempotency_key = 5;
+// SagaflowService - контракт внешнего API оркестратора
+service SagaflowService {
+  // Start - запуск нового экземпляра саги
+  rpc Start(StartRequest) returns (StartResponse);
+  // GetView - получить представление конкретного экземпляра
+  rpc GetView(GetViewRequest) returns (GetViewResponse);
+}
+
+message StartRequest {
+  // saga_name - название саги
+  string saga_name = 1;
+  // saga_version - версия саги
+  int32 saga_version = 2;
+  // initial_context - входные параметры
+  bytes initial_context = 3;
+  // start_after - время отложенного запуска
+  optional string start_after = 4;
+  // idempotency_key - ключ идемпотентности
+  optional string idempotency_key = 5;
+}
+
+message StartResponse {
+  // status - статус ответа
+  Status status = 1;
+  // saga_instance_id - id созданного экземпляра
+  string saga_instance_id = 2;
+}
+
+message GetViewRequest {
+  // saga_instance_id - id экземпляра
+  string saga_instance_id = 1;
+}
+
+message GetViewResponse {
+  // status - статус ответа
+  Status status = 1;
+  // view - представление экземпляра
+  InstanceView view = 2;
 }

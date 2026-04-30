@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package sagaflow.v1;
+
+option go_package = "github.com/timickb/sagaflow/proto/gen/go/sagaflow;sagaflow";
+
+// StepHandlerService - контракт для обработчиков шагов саг
+service StepHandlerService {
+  rpc Handle(HandleRequest) returns (HandleResponse);
+}
+
+// HandleRequest - запрос обработки шага саги
+message HandleRequest {
+  // meta - информация о саге
+  StepExecutionMeta meta = 1;
+  // payload - входные параметры шага
+  bytes payload = 2;
+}
+
+// HandleResponse - ответ на HandleRequest
+message HandleResponse {
+  // success - успешно ли принят шаг к выполнению
+  bool success = 1;
+  // error - возможная ошибка разбора входных данных
+  optional string error = 2;
+}
+
+// StepExecutionMeta - служебная информация
+message StepExecutionMeta {
+  // saga_id - id экземпляра
+  string saga_id = 1;
+  // step_id - название шага
+  string step_id = 2;
+  // action - название операции
+  string action = 3;
+  // attempt - номер текущей попытки
+  int32 attempt = 4;
+  // idempotency_key - ключ идемпотентности
+  string idempotency_key = 5;
+}

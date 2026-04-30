@@ -29,7 +29,5 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to build dependencies")
 	}
 
-	if err = builder.Start(); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start engine")
-	}
+	builder.Start().Wait()
 }

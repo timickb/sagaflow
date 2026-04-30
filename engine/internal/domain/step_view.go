@@ -1,9 +1,15 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // StepView - представление конкретного шага экземпляра саги
 type StepView struct {
+	// SagaId - ID экземпляра
+	SagaId uuid.UUID
 	// Name - название шага в DSL (= идентификатор)
 	Name string
 	// Order - порядковый номер шага

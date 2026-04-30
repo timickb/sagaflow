@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package sagaflow.v1;
+
+option go_package = "github.com/timickb/sagaflow/proto/gen/go/sagaflow;sagaflow";
+
+// Status - статус операции
+message Status {
+  int32 code = 1;
+  Error error = 2;
+}
+
+// Error представление ошибки бизнес-логики
+message Error {
+  string message = 1;
+  repeated Detail details = 2;
+}
+
+// Detail - опциональная детализация ошибки
+message Detail {
+  int32 code = 1;
+  string message = 2;
+}
+
+// InstanceView - представление экземпляра саги
+message InstanceView {
+  InstanceStatus status = 1;
+  string saga_name = 2;
+  int32 saga_version = 3;
+  bytes initial_context = 4;
+  bytes runtime_context = 5;
+}
+
+enum InstanceStatus {
+  INSTANCE_STATUS_UNSPECIFIED = 0;
+  INSTANCE_STATUS_PENDING = 1;
+  INSTANCE_STATUS_RUNNING = 2;
+  INSTANCE_STATUS_VERIFYING = 3;
+  INSTANCE_STATUS_COMPENSATING = 4;
+  INSTANCE_STATUS_COMPENSATED = 5;
+  INSTANCE_STATUS_FAILED = 6;
+  INSTANCE_STATUS_INCONSISTENT = 7;
+  INSTANCE_STATUS_COMPLETED = 8;
+}

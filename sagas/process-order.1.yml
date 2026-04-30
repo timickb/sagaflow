@@ -1,5 +1,5 @@
 saga:
-  name: Process Order
+  name: process-order
   version: 1
   description: Оформление заказа в интернет-магазине
   start: ReserveInventory
@@ -59,7 +59,7 @@ steps:
 
   - id: ChargePayment
     kind: action
-    description: Сохранить сущность заказа и списать деньги с баланса пользователя
+    description: Совершить платеж, используя заранее привязанную карту пользователя
     timeout: 10s
     handler:
       service: payments
@@ -95,6 +95,7 @@ steps:
 
   - id: VerifyOrderOLTP
     kind: verify
+    delay: 10s
     timeout: 5s
     verifier:
       type: sql
@@ -119,7 +120,7 @@ steps:
       datasource: clickhouse
       query: |
         SELECT count()
-        FROM fct_orders
+        FROM fct_orders FINAL
         WHERE order_id = :order_id
       expect:
         equals: 1
@@ -127,7 +128,6 @@ steps:
       passed: Success
       failed: ReconcileAnalyticsMaterialization
       timeout: ReconcileAnalyticsMaterialization
-      inconclusive: ReconcileAnalyticsMaterialization
 
   - id: ReconcileAnalyticsMaterialization
     kind: reconcile
@@ -138,7 +138,7 @@ steps:
       delay: 5s
       backoff: fixed
     handler:
-      service: analytics
+      service: payments
       method: RebuildOrderProjection
       input:
         order_id: ${input.order_id}

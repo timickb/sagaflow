@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package notifications.v1;
 
-import "sagaflow/sagaflow.proto";
-
 option go_package = "github.com/timickb/sagaflow/proto/gen/go/notifications;notifications";
 
 service NotificationsService {
@@ -11,7 +9,6 @@ service NotificationsService {
 }
 
 message SendEmailRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
   string mail_to = 2;
   string subject = 3;
   string body = 4;

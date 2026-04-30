@@ -17,12 +17,20 @@ type RunnerConfig interface {
 	GetLockTimeout() time.Duration
 }
 
+// HandlersConfig - конфигурация обработчиков локальных транзакций
+type HandlersConfig interface {
+	GetHandlerConnection(serviceName string) (*grpc.ClientConn, bool)
+}
+
+type VerificationSourcesConfig interface {
+}
+
 // === USECASES ===
 
 // InstanceUsecase - бизнес-логика над экземплярами саг
 type InstanceUsecase interface {
 	Start(ctx context.Context, dto *InstanceStartDto) (uuid.UUID, error)
-	GetInfo(ctx context.Context, sagaId uuid.UUID) (*InstanceView, error)
+	GetView(ctx context.Context, sagaId uuid.UUID) (*InstanceView, error)
 	GetFeedCount(ctx context.Context, dto *GetFeedDto) (int64, error)
 	GetFeed(ctx context.Context, dto *GetFeedDto) (*InstancesFeed, error)
 	GetFeedNext(ctx context.Context, paginationToken string) (*InstancesFeed, error)
@@ -37,11 +45,6 @@ type Transactor interface {
 // SagaDefinitionCache - кэш моделей (описаний) саг
 type SagaDefinitionCache interface {
 	GetSagaDefinition(header SagaDefinitionHeader) (*SagaDefinition, bool)
-}
-
-// HandlerCache - кэш соединений для хэндлеров
-type HandlerCache interface {
-	GetHandlerClient(handler *Handler) (*grpc.ClientConn, bool)
 }
 
 // InstanceRepository - репозиторий наг экземплярами саг
@@ -61,12 +64,18 @@ type InstanceRepository interface {
 	MakeTransition(ctx context.Context, dto *InstanceTransitionDto) error
 	RemoveLock(ctx context.Context, id uuid.UUID) error
 	Create(ctx context.Context, dto *InstanceStartDto) (uuid.UUID, error)
-	SetFailed(ctx context.Context, id uuid.UUID, dto *InstanceFailDto) error
+	Terminate(ctx context.Context, id uuid.UUID, dto *InstanceTerminateDto) error
+	SetExecutionState(ctx context.Context, id uuid.UUID, state InstanceExecutionState) error
 }
 
 // StepRepository - репозиторий над шагами саги
 type StepRepository interface {
 	GetByInstanceAndName(ctx context.Context, instanceId uuid.UUID, stepName string) (*StepView, bool, error)
-	Create(ctx context.Context, dto *StepCreateDto) error
+	Create(ctx context.Context, dto *StepCreateDto) (*StepView, error)
 	Update(ctx context.Context, dto *StepUpdateDto) error
+}
+
+// VerificationSource - адаптер для верификации данных в рамках сверочных шагов
+type VerificationSource interface {
+	Verify(ctx context.Context, req *VerificationRequest) (*VerificationResult, error)
 }

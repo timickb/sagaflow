@@ -21,8 +21,12 @@ type DefinitionStep struct {
 	Verifier *Verifier
 	Result   *SagaResult
 
+	Input  map[string]string
+	Output map[string]string
+
 	Retry   *RetryPolicy
 	Timeout time.Duration
+	Delay   *time.Duration
 
 	CompensateStepId string
 

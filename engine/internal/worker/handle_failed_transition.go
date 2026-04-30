@@ -35,19 +35,19 @@ func (r *Runner) handleFailedTransition(
 
 	if currentStepDef.Retry != nil && currentStepDef.Retry.MaxAttempts <= currentStep.Attempt && !resultIsNotRetriable {
 		// Еще остались ретраи
-		delay := currentStepDef.Retry.Delay.Milliseconds()
-		if currentStepDef.Retry.Backoff == domain.RetryBackoffTypeExponential {
-			delay *= 2 * int64(currentStep.Attempt)
-		}
-		nextExecution := currentStep.UpdatedAt.Add(time.Duration(delay) * time.Millisecond)
-
 		return &eventHandleResult{
 			InstanceTransitionDto: &domain.InstanceTransitionDto{
 				Id:              instance.SagaId,
 				ExecutionState:  utils.Ptr(domain.InstanceExecutionStateRunnable),
-				NextExecutionAt: &nextExecution,
+				NextExecutionAt: utils.Ptr(calculateNextRetry(currentStepDef.Retry, currentStep)),
 				ErrCode:         utils.Ptr(string(domain.InstanceErrorCodeHandler)),
 				ErrMessage:      instanceErrMessage,
+			},
+			StepUpdateDto: &domain.StepUpdateDto{
+				InstanceId:       instance.SagaId,
+				StepName:         currentStep.Name,
+				IncrementAttempt: true,
+				// TODO: нужно ли записывать currentStepErrData, если ретраи еще не закончились?
 			},
 		}, nil
 	}
@@ -62,7 +62,7 @@ func (r *Runner) handleFailedTransition(
 		return s.Id == nextStepName
 	})
 	if nextStepDef == nil {
-		log.Error().Msgf("Next step %s not found for instance %v", event.Ref.StepName, instance.SagaId)
+		log.Error().Msgf("Next step %s not found for instance %v", nextStepName, instance.SagaId)
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonStepNotFound), nil
 	}
 

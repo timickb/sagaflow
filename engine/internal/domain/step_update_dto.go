@@ -5,8 +5,9 @@ import (
 )
 
 type StepUpdateDto struct {
-	InstanceId uuid.UUID
-	StepName   string
-	Status     *StepStatus
-	ErrorData  InstanceContext
+	InstanceId       uuid.UUID
+	StepName         string
+	Status           *StepStatus
+	ErrorData        InstanceContext
+	IncrementAttempt bool
 }

@@ -9,6 +9,9 @@ type InstanceStartDto struct {
 	// InitialContext - входные параметры инстанса
 	InitialContext InstanceContext
 
+	// StartStepName - название (= идентификатор) первого шага
+	StartStepName string
+
 	// IdempotencyKey - опциональный ключ идемпотентности
 	// по умолчанию = random uuid
 	IdempotencyKey *string

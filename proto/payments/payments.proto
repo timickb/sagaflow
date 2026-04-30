@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package payments.v1;
 
-import "sagaflow/sagaflow.proto";
-
 option go_package = "github.com/timickb/sagaflow/proto/gen/go/payments;payments";
 
 service PaymentsService {
@@ -13,8 +11,6 @@ service PaymentsService {
 }
 
 message CaptureRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
-  
   string order_id = 2;
   string user_id = 3;
   
@@ -37,7 +33,6 @@ message CaptureResponse {
 }
 
 message AuthorizeRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
   string order_id = 2;
   string payment_method = 3;
   string payment_provider = 4;
@@ -49,7 +44,6 @@ message AuthorizeResponse {
 }
 
 message RefundRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
   string payment_id = 2;
   string transaction_id = 3;
   string amount = 4;

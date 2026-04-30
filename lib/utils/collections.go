@@ -17,6 +17,18 @@ func MapSlice[T any, V any](slice []T, fn func(T) V) []V {
 	return result
 }
 
+func MapSliceOnError[T any, V any](slice []T, fn func(T) (V, error)) ([]V, error) {
+	result := make([]V, len(slice))
+	for i, item := range slice {
+		mapped, err := fn(item)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = mapped
+	}
+	return result, nil
+}
+
 func MapToKeysSlice[T any, K comparable](data map[K]T) []K {
 	slice := make([]K, 0)
 	for k, _ := range data {

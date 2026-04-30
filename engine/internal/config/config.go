@@ -15,11 +15,11 @@ type validatable interface {
 
 // Config - конфигурация сервиса
 type Config struct {
-	Postgres   *db.PostgresConfig  `yaml:"postgres" env:"POSTGRES"`
-	Kafka      *broker.KafkaConfig `yaml:"kafka" env:"KAFKA"`
-	Runner     *RunnerConfig       `yaml:"runner" env:"RUNNER"`
-	Backoffice *BackofficeConfig   `yaml:"backoffice" env:"BACKOFFICE"`
-	Handlers   *HandlersConfig     `yaml:"handlers" env:"HANDLERS"`
+	Postgres *db.PostgresConfig  `yaml:"postgres" env:"POSTGRES"`
+	Kafka    *broker.KafkaConfig `yaml:"kafka" env:"KAFKA"`
+	Runner   *RunnerConfig       `yaml:"runner" env:"RUNNER"`
+	Api      *APIConfig          `yaml:"api" env:"API"`
+	Handlers *HandlersConfig     `yaml:"handlers" env:"HANDLERS"`
 }
 
 // NewFromFile - создать конфиг из YAML файла
@@ -48,7 +48,7 @@ func (c *Config) Validate() error {
 		{"postgres", c.Postgres},
 		{"kafka", c.Kafka},
 		{"runner", c.Runner},
-		{"backoffice", c.Backoffice},
+		{"backoffice", c.Api},
 		{"handlers", c.Handlers},
 	}
 

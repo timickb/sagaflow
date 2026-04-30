@@ -11,7 +11,7 @@ postgres:
 
 kafka:
   brokers:
-    - localhost:9092
+    - localhost:29092
   group_id: sagaflow-orchestrator
   client_id: sagaflow-orchestrator-1
   step_result_topic: saga.step.result
@@ -21,7 +21,7 @@ kafka:
   start_offset: 0
 
 runner:
-  sagas_dir_path: ./sagas
+  sagas_dir_path: ./../sagas
   hostname: instance1
   workers_num: 3
   batch_size: 4
@@ -31,12 +31,31 @@ runner:
 handlers:
   call_timeout: 5s
   endpoints:
-    - warehouse:50051
-    - payments:50052
-    - shop:50053
-    - id:50054
-    - notifications:50055
+    # service_name:host:port
+    - warehouse:warehouse:50051
+    - payments:payments:50052
+    - shop:shop:50053
+    - id:id:50054
+    - notifications:notifications:50055
 
-backoffice:
-  enabled: true
-  port: 8080
+verification_sources:
+  orders_db:
+    type: postgres
+    dsn: "${ORDERS_DB_DSN}"
+    timeout: 3s
+  analytics_db:
+    type: clickhouse
+    dsn: "${CLICKHOUSE_DSN}"
+    timeout: 5s
+  payment_api:
+    type: rest
+    baseUrl: "${PAYMENT_API_URL}"
+    timeout: 2s
+  document_store:
+    type: mongo
+    uri: "${MONGO_URI}"
+    database: "orders"
+    timeout: 3s
+
+api:
+  port: 3731

@@ -2,6 +2,7 @@ package dbstruct
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,7 +52,7 @@ func NewSagaInstance(id uuid.UUID, dto *domain.InstanceStartDto) *DBSagaInstance
 		SagaVersion:     dto.SagaVersion,
 		Status:          domain.InstanceStatusPending,
 		ExecutionState:  domain.InstanceExecutionStateRunnable,
-		CurrentStepName: nil,
+		CurrentStepName: &dto.StartStepName,
 		IdempotencyKey:  idempotencyKey,
 		CorrelationId:   dto.CorrelationId,
 		InitialContext:  dto.InitialContext.GetRaw(),
@@ -64,15 +65,23 @@ func (si *DBSagaInstance) TableName() string {
 	return "saga_instance"
 }
 
-func (si *DBSagaInstance) ToDomain() *domain.InstanceView {
+func (si *DBSagaInstance) ToDomain() (*domain.InstanceView, error) {
+	initialContext, err := domain.NewJsonInstanceContextFromRaw(si.InitialContext)
+	if err != nil {
+		return nil, fmt.Errorf("take saga instance initial context: %w", err)
+	}
+	runtimeContext, err := domain.NewJsonInstanceContextFromRaw(si.RuntimeContext)
+	if err != nil {
+		return nil, fmt.Errorf("take saga instance runtime context: %w", err)
+	}
 	return &domain.InstanceView{
 		SagaId:           si.SagaId,
 		SagaName:         si.SagaName,
 		SagaVersion:      si.SagaVersion,
 		Status:           si.Status,
 		ExecutionState:   si.ExecutionState,
-		InitialContext:   domain.NewJsonInstanceContextFromRaw(si.InitialContext),
-		RuntimeContext:   domain.NewJsonInstanceContextFromRaw(si.RuntimeContext),
+		InitialContext:   initialContext,
+		RuntimeContext:   runtimeContext,
 		ContextVersion:   si.ContextVersion,
 		IdempotencyKey:   si.IdempotencyKey,
 		CurrentStepName:  si.CurrentStepName,
@@ -82,7 +91,7 @@ func (si *DBSagaInstance) ToDomain() *domain.InstanceView {
 		StartedAt:        si.StartedAt,
 		UpdatedAt:        si.UpdatedAt,
 		FinishedAt:       si.FinishedAt,
-	}
+	}, nil
 }
 
 func NewSagaInstanceMakeTransitionUpdateMap(dto *domain.InstanceTransitionDto) map[string]interface{} {

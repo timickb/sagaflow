@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,7 +34,7 @@ func (r *instanceRepo) TakeBatch(
 		WITH batch AS (
     		SELECT saga_id
     		FROM saga_instance
-    		WHERE status IN ('RUNNING', 'COMPENSATING', 'VERIFYING')
+    		WHERE status IN ('PENDING', 'RUNNING', 'COMPENSATING', 'VERIFYING')
 				AND execution_state = 'RUNNABLE'
       			AND next_execution_at <= now()
       			AND (locked_till IS NULL OR locked_till < now())
@@ -52,13 +53,14 @@ func (r *instanceRepo) TakeBatch(
 	if err != nil {
 		return nil, fmt.Errorf("take saga instances batch: %w", err)
 	}
-	return utils.MapSlice(instances, (*dbstruct.DBSagaInstance).ToDomain), nil
+	return utils.MapSliceOnError(instances, (*dbstruct.DBSagaInstance).ToDomain)
 }
 
 // RemoveLock - снять блокировку с экземпляра
 func (r *instanceRepo) RemoveLock(ctx context.Context, id uuid.UUID) error {
 	err := r.db.WithTxSupport(ctx).
-		Model(&dbstruct.DBSagaInstance{SagaId: id}).
+		Model(&dbstruct.DBSagaInstance{}).
+		Where("saga_id = ?", id).
 		Updates(
 			map[string]interface{}{
 				"locked_till": (*time.Time)(nil),
@@ -93,14 +95,18 @@ func (r *instanceRepo) Create(ctx context.Context, dto *domain.InstanceStartDto)
 	return instanceId, nil
 }
 
-// SetFailed - перевести экземпляр в статус FAILED
-func (r *instanceRepo) SetFailed(ctx context.Context, id uuid.UUID, dto *domain.InstanceFailDto) error {
+// Terminate - перевести экземпляр в терминальный статус
+func (r *instanceRepo) Terminate(ctx context.Context, id uuid.UUID, dto *domain.InstanceTerminateDto) error {
+	if !dto.Status.IsTerminal() {
+		return errors.New("set db instance terminated: only terminal statuses are allowed")
+	}
 	now := time.Now()
 	query := r.db.WithTxSupport(ctx).
-		Model(&dbstruct.DBSagaInstance{SagaId: id}).
+		Model(&dbstruct.DBSagaInstance{}).
+		Where("saga_id = ?", id).
 		Updates(
 			map[string]interface{}{
-				"status":             domain.InstanceStatusFailed,
+				"status":             dto.Status,
 				"last_error_code":    dto.ErrCode,
 				"last_error_message": dto.ErrMessage,
 				"finished_at":        now,
@@ -109,10 +115,10 @@ func (r *instanceRepo) SetFailed(ctx context.Context, id uuid.UUID, dto *domain.
 		)
 
 	if query.Error != nil {
-		return fmt.Errorf("set db instance failed: %w", query.Error)
+		return fmt.Errorf("set db instance terminated: %w", query.Error)
 	}
 	if query.RowsAffected == 0 {
-		return fmt.Errorf("set db instance failed: no rows affected")
+		return fmt.Errorf("set db instance terminated: no rows affected")
 	}
 	return nil
 }
@@ -125,21 +131,20 @@ func (r *instanceRepo) GetForEvent(
 	lockedTill := now.Add(lockExpire)
 	suitableStatuses := []domain.InstanceStatus{
 		domain.InstanceStatusRunning,
-		domain.InstanceStatusCompleted,
+		domain.InstanceStatusCompensating,
+		domain.InstanceStatusVerifying,
 	}
 
 	var instance *dbstruct.DBSagaInstance
 
 	query := r.db.WithTxSupport(ctx).
 		Model(&instance).
-		Clauses(clause.Returning{
-			Columns: []clause.Column{{Name: "*"}},
-		}).
+		Clauses(clause.Returning{}).
 		Where("saga_id = ?", id).
 		Where("next_execution_at <= now()").
 		Where("locked_till IS NULL OR locked_till < now()").
 		Where("status IN (?)", suitableStatuses).
-		Where("execution_state = ?", domain.InstanceExecutionStateWaitEvent).
+		Where("execution_state = ?", domain.InstanceExecutionStateWaitingEvent).
 		Updates(map[string]interface{}{
 			"locked_till": lockedTill,
 			"locked_by":   workerId,
@@ -152,5 +157,27 @@ func (r *instanceRepo) GetForEvent(
 		return nil, fmt.Errorf("get db instance failed: instance %v not found", id)
 	}
 
-	return instance.ToDomain(), nil
+	return instance.ToDomain()
+}
+
+// SetExecutionState - перевести в состояние ожидания события
+func (r *instanceRepo) SetExecutionState(ctx context.Context, id uuid.UUID, state domain.InstanceExecutionState) error {
+	now := time.Now()
+	query := r.db.WithTxSupport(ctx).
+		Model(&dbstruct.DBSagaInstance{}).
+		Where("saga_id = ?", id).
+		Updates(
+			map[string]interface{}{
+				"execution_state": state,
+				"updated_at":      now,
+			},
+		)
+
+	if query.Error != nil {
+		return fmt.Errorf("set db instance waiting handler: %w", query.Error)
+	}
+	if query.RowsAffected == 0 {
+		return fmt.Errorf("set db instance waiting handler: no rows affected")
+	}
+	return nil
 }

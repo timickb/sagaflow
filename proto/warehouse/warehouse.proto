@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package warehouse.v1;
 
-import "sagaflow/sagaflow.proto";
-
 option go_package = "github.com/timickb/sagaflow/proto/gen/go/warehouse;warehouse";
 
 service WarehouseService {
@@ -12,7 +10,6 @@ service WarehouseService {
 }
 
 message ReserveRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
   string order_id = 2;
   repeated ReserveItem items = 4;
 }
@@ -28,7 +25,6 @@ message ReserveResponse {
 }
 
 message ReleaseRequest {
-  sagaflow.v1.StepExecutionMeta meta = 1;
   string order_id = 2;
 }
 

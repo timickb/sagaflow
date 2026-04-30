@@ -3,13 +3,22 @@ package instance
 import "github.com/timickb/sagaflow/engine/internal/domain"
 
 type Usecase struct {
-	repo  domain.InstanceRepository
-	cache domain.SagaDefinitionCache
+	repo       domain.InstanceRepository
+	stepRepo   domain.StepRepository
+	transactor domain.Transactor
+	cache      domain.SagaDefinitionCache
 }
 
-func NewUsecase(repo domain.InstanceRepository, cache domain.SagaDefinitionCache) *Usecase {
+func NewUsecase(
+	repo domain.InstanceRepository,
+	stepRepo domain.StepRepository,
+	transactor domain.Transactor,
+	cache domain.SagaDefinitionCache,
+) *Usecase {
 	return &Usecase{
-		repo:  repo,
-		cache: cache,
+		repo:       repo,
+		stepRepo:   stepRepo,
+		transactor: transactor,
+		cache:      cache,
 	}
 }

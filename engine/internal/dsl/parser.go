@@ -3,10 +3,18 @@ package dsl
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/lib/utils"
+)
+
+var (
+	inputDstRegexp  = regexp.MustCompile(`^[a-zA-Z_-][a-zA-Z0-9_-]*$`)
+	inputSrcRegexp  = regexp.MustCompile(`^\$\{(?:runtime|input|meta)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*\}$`)
+	outputDstRegexp = regexp.MustCompile(`^(?:runtime|input|meta)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*$`)
+	outputSrcRegexp = regexp.MustCompile(`^\$\{(?:result|error)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*\}$`)
 )
 
 // ValidateAndNormalize - валидировать модель саги и преобразовать в доменную модель
@@ -69,6 +77,7 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 		return nil, errors.New("step id could not be empty")
 	}
 
+	// Таймаут обязателен для любого шага кроме терминального
 	if step.Kind != domain.StepKindTerminal {
 		timeout, err := time.ParseDuration(step.Timeout)
 		if err != nil {
@@ -80,6 +89,19 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 		parsedStep.Timeout = timeout
 	}
 
+	// Время отложенного запуска
+	if !utils.IsStrNilOrEmpty(step.Delay) {
+		delay, err := time.ParseDuration(*step.Delay)
+		if err != nil {
+			return nil, fmt.Errorf("parse step delay: %w", err)
+		}
+		if delay == 0 {
+			return nil, errors.New("step delay is zero")
+		}
+		parsedStep.Delay = &delay
+	}
+
+	// Конфигурация повторных попыток
 	if step.Retry != nil {
 		if !step.Retry.Backoff.IsValid() {
 			return nil, errors.New("invalid step retry backoff type")
@@ -96,6 +118,32 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 			Backoff:     step.Retry.Backoff,
 			Delay:       delay,
 		}
+	}
+
+	// Входные данные
+	if step.Input != nil {
+		for from, to := range step.Input {
+			if !inputSrcRegexp.MatchString(to) {
+				return nil, fmt.Errorf("invalid input source %s", to)
+			}
+			if !inputDstRegexp.MatchString(from) {
+				return nil, fmt.Errorf("invalid input destination %s", from)
+			}
+		}
+		parsedStep.Input = step.Input
+	}
+
+	// Выходные данные
+	if step.Output != nil {
+		for from, to := range step.Output {
+			if !outputSrcRegexp.MatchString(to) {
+				return nil, fmt.Errorf("invalid output source %s", to)
+			}
+			if !outputDstRegexp.MatchString(from) {
+				return nil, fmt.Errorf("invalid output destination %s", from)
+			}
+		}
+		parsedStep.Output = step.Output
 	}
 
 	switch step.Kind {

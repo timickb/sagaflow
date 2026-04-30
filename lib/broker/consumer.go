@@ -5,8 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
+)
+
+const (
+	fetchFailedBackoff = time.Second
 )
 
 type KafkaStepResultReader struct {
@@ -21,15 +27,14 @@ func NewKafkaStepResultReader(cfg *KafkaConfig) (*KafkaStepResultReader, error) 
 	cfg = cfg.withDefaults()
 
 	readerConfig := kafka.ReaderConfig{
-		Brokers:        cfg.Brokers,
-		GroupID:        cfg.GroupId,
-		Topic:          cfg.StepResultTopic,
-		MinBytes:       1,
-		MaxBytes:       cfg.MaxBytes,
-		MaxWait:        cfg.ReadTimeout,
-		CommitInterval: cfg.CommitInterval,
-		StartOffset:    cfg.StartOffset,
-		// TODO: нужно ли включить?
+		Brokers:         cfg.Brokers,
+		GroupID:         cfg.GroupId,
+		Topic:           cfg.StepResultTopic,
+		MinBytes:        1,
+		MaxBytes:        cfg.MaxBytes,
+		MaxWait:         cfg.ReadTimeout,
+		CommitInterval:  cfg.CommitInterval,
+		StartOffset:     cfg.StartOffset,
 		ReadLagInterval: -1,
 	}
 
@@ -56,32 +61,52 @@ func (r *KafkaStepResultReader) Start(ctx context.Context, handler StepResultHan
 		return errors.New("unexpected nil step result handler")
 	}
 
+	log.Info().Msg("Started kafka consumer")
+
 	for {
 		msg, err := r.reader.FetchMessage(ctx)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if ctx.Err() != nil {
+				log.Info().Msg("Consumer received context done")
 				return nil
 			}
-			return fmt.Errorf("fetch kafka message: %w", err)
+
+			log.Error().Err(err).Msg("Failed to fetch kafka message")
+			time.Sleep(fetchFailedBackoff)
+			continue
 		}
 
-		var event *SagaStepResultEvent
+		var event SagaStepResultEvent
 		if err = json.Unmarshal(msg.Value, &event); err != nil {
-			// TODO: подумать над отправкой в DLQ
+			log.Error().
+				Err(err).
+				Int("partition", msg.Partition).
+				Int64("offset", msg.Offset).
+				Msg("Failed to unmarshal kafka message")
+
 			if commitErr := r.reader.CommitMessages(ctx, msg); commitErr != nil {
-				return fmt.Errorf("unmarshal kafka message: %v; commit poisoned message: %w", err, commitErr)
+				log.Error().Err(commitErr).Msg("Failed to commit poisoned kafka message")
 			}
 			continue
 		}
-		if err = handler(ctx, event); err != nil {
-			// не коммитим offset, подождем ретрая
-			return fmt.Errorf("handle saga.step.result event: %w", err)
+		if err = handler(ctx, &event); err != nil {
+			log.Error().
+				Err(err).
+				Int("partition", msg.Partition).
+				Int64("offset", msg.Offset).
+				Msg("Failed to handle step result event")
+			continue
 		}
 
 		if err = r.reader.CommitMessages(ctx, msg); err != nil {
-			return fmt.Errorf("commit kafka message: %w", err)
+			log.Error().
+				Err(err).
+				Int("partition", msg.Partition).
+				Int64("offset", msg.Offset).
+				Msg("Failed to commit handled kafka message")
 		}
 	}
+
 }
 
 func (r *KafkaStepResultReader) Stop() error {

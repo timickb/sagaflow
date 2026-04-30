@@ -14,4 +14,10 @@ const (
 	InstanceFailReasonUnknownEventStatus InstanceFailReason = "UNKNOWN_EVENT_STATUS"
 	// InstanceFailReasonRetriesExceeded - не удалось получить ответ от воркера после всех ретраев
 	InstanceFailReasonRetriesExceeded InstanceFailReason = "RETRIES_EXCEEDED"
+	// InstanceFailReasonHandlerNotFound - не найдено подключение к сервису-обработчику
+	InstanceFailReasonHandlerNotFound InstanceFailReason = "HANDLER_NOT_FOUND"
+	// InstanceFailReasonInvalidHandler - поведение обработчика не предусматривает дальнейших ретраев
+	InstanceFailReasonInvalidHandler InstanceFailReason = "INVALID_HANDLER"
+	// InstanceFailReasonPayloadMarshaling - не удалось замаршалить входные данные шага
+	InstanceFailReasonPayloadMarshaling InstanceFailReason = "PAYLOAD_MARSHALING"
 )

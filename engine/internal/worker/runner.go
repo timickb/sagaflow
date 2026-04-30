@@ -9,33 +9,37 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/timickb/sagaflow/engine/internal/domain"
+	"github.com/timickb/sagaflow/lib/broker"
 	"github.com/timickb/sagaflow/lib/utils"
 )
 
 type Runner struct {
 	cfg          domain.RunnerConfig
+	handlers     domain.HandlersConfig
 	instanceRepo domain.InstanceRepository
 	stepRepo     domain.StepRepository
 	transactor   domain.Transactor
 	sagaCache    domain.SagaDefinitionCache
-	handlerCache domain.HandlerCache
+	publisher    *broker.KafkaStepResultWriter
 }
 
 func NewRunner(
 	cfg domain.RunnerConfig,
+	handlersCfg domain.HandlersConfig,
 	instanceRepo domain.InstanceRepository,
 	stepRepo domain.StepRepository,
 	transactor domain.Transactor,
 	sagaCache domain.SagaDefinitionCache,
-	handlerCache domain.HandlerCache,
+	publisher *broker.KafkaStepResultWriter,
 ) *Runner {
 	return &Runner{
 		cfg:          cfg,
+		handlers:     handlersCfg,
 		instanceRepo: instanceRepo,
 		stepRepo:     stepRepo,
 		transactor:   transactor,
 		sagaCache:    sagaCache,
-		handlerCache: handlerCache,
+		publisher:    publisher,
 	}
 }
 
@@ -98,20 +102,8 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 	}
 
 	switch instance.Status {
-	case domain.InstanceStatusPending:
-		// 1. Должен существовать шаг, указанный в saga.start
-		startStepDef := utils.Find(sagaDef.Steps, func(step *domain.DefinitionStep) bool {
-			return step.Id == sagaDef.StartStepId
-		})
-		if startStepDef == nil {
-			log.Error().Msgf("First step %s does not declared in DSL, abort saga", sagaDef.StartStepId)
-			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
-			return
-		}
-		// 2. Выполнение первого шага
-		r.executeStep(ctx, instance, startStepDef)
-	case domain.InstanceStatusRunning:
-		// 1. Должен существовать шаг, сохраненный в current_step_name
+	case domain.InstanceStatusPending, domain.InstanceStatusRunning:
+		// 1. Должен был задекларирован шаг, сохраненный в current_step_name
 		if utils.IsStrNilOrEmpty(instance.CurrentStepName) {
 			log.Error().Msgf("Instance %s has unexpected empty current_step_name", instance.SagaId)
 			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
@@ -128,8 +120,25 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
 			return
 		}
-		// 2. Выполнение очередного шага
-		r.executeStep(ctx, instance, pendingStepDef)
+		// 2. Он должен быть сохранен в saga_steps
+		pendingStep, exists, err := r.stepRepo.GetByInstanceAndName(ctx, instance.SagaId, *instance.CurrentStepName)
+		if err != nil {
+			log.Error().Err(err).Msgf(
+				"Failed to fetch pending step from db: instance=%v, step=%s",
+				instance.SagaId, *instance.CurrentStepName,
+			)
+			return
+		}
+		if !exists {
+			log.Error().Msgf(
+				"Instance %s attempts to call declared step %s, but it wasn't created",
+				instance.SagaId, *instance.CurrentStepName,
+			)
+			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
+			return
+		}
+		// 3. Выполнение очередного шага
+		r.executeStep(ctx, instance, pendingStepDef, pendingStep)
 	case domain.InstanceStatusVerifying:
 		// todo
 	default:
@@ -146,11 +155,24 @@ func (r *Runner) failInstance(
 	failReason domain.InstanceFailReason,
 	msg *string,
 ) {
-	err := r.instanceRepo.SetFailed(ctx, instanceId, &domain.InstanceFailDto{
-		ErrCode:    string(failReason),
+	err := r.instanceRepo.Terminate(ctx, instanceId, &domain.InstanceTerminateDto{
+		ErrCode:    utils.Ptr(string(failReason)),
 		ErrMessage: msg,
 	})
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to set instance %v failed (errcode=%v)", instanceId, failReason)
+	}
+}
+
+func (r *Runner) finishInstance(
+	ctx context.Context,
+	instanceId uuid.UUID,
+	status domain.InstanceStatus,
+) {
+	err := r.instanceRepo.Terminate(ctx, instanceId, &domain.InstanceTerminateDto{
+		Status: status,
+	})
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to set instance %v finished", instanceId)
 	}
 }

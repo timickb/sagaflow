@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/lib/db"
 	"github.com/timickb/sagaflow/lib/outbox"
+	"github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 	pb "github.com/timickb/sagaflow/proto/gen/go/warehouse"
 	"github.com/timickb/sagaflow/services/warehouse/internal/repository"
 	"github.com/timickb/sagaflow/services/warehouse/internal/service"
@@ -132,7 +133,8 @@ func main() {
 
 	s := grpc.NewServer()
 	pb.RegisterWarehouseServiceServer(s, newWarehouseServer(svc))
-	reflection.Register(s)
+	sagaflow.
+		reflection.Register(s)
 
 	log.Printf("Warehouse service listening on :50051")
 

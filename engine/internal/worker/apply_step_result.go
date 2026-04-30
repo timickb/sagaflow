@@ -10,7 +10,15 @@ import (
 	"github.com/timickb/sagaflow/lib/utils"
 )
 
-// ApplyStepResult - обработать событие завершения обработки шага action или compensate сервисом.
+var (
+	allowedStepKindsForEvent = []domain.StepKind{
+		domain.StepKindAction,
+		domain.StepKindCompensate,
+		domain.StepKindReconcile,
+	}
+)
+
+// ApplyStepResult - обработать событие завершения обработки шага.
 // Либо фиксирует новое состояние экземпляра в БД, либо возвращает ошибку
 // для последующего ретрая брокером.
 func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResultEvent) (err error) {
@@ -42,7 +50,7 @@ func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResu
 				}
 			}
 			if result.StepCreateDto != nil {
-				if sErr := r.stepRepo.Create(ctx, result.StepCreateDto); sErr != nil {
+				if _, sErr := r.stepRepo.Create(ctx, result.StepCreateDto); sErr != nil {
 					return fmt.Errorf("save new step: %w", sErr)
 				}
 			}
@@ -72,7 +80,7 @@ func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResu
 		result = NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonStepNotFound)
 		return nil
 	}
-	if currentStepDef.Kind != domain.StepKindAction && currentStepDef.Kind != domain.StepKindCompensate {
+	if !utils.Contains(allowedStepKindsForEvent, currentStepDef.Kind) {
 		log.Error().Msgf("Unexpected handled step with kind %s. Only action and compensate are possible", currentStepDef.Kind)
 		result = NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonInconsistentStep)
 		return nil

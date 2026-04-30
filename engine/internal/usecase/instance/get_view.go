@@ -7,7 +7,7 @@ import (
 	"github.com/timickb/sagaflow/engine/internal/domain"
 )
 
-func (u *Usecase) GetInfo(ctx context.Context, sagaId uuid.UUID) (*domain.InstanceView, error) {
+func (u *Usecase) GetView(ctx context.Context, sagaId uuid.UUID) (*domain.InstanceView, error) {
 	// TODO: implement
 	panic("implement me")
 }

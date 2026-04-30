@@ -74,6 +74,8 @@ paths:
     get:
       operationId: gedFeedCount
       description: Получить общее количество записей в фиде
+      parameters:
+        - $ref: "#/components/parameters/statuses"
       responses:
         "200":
           description: Успешный ответ

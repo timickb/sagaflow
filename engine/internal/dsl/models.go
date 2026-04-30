@@ -32,7 +32,10 @@ type RawStep struct {
 	Handler    *RawHandler        `yaml:"handler,omitempty"`
 	Verifier   *RawVerifier       `yaml:"verifier,omitempty"`
 	Retry      *RawRetryPolicy    `yaml:"retry,omitempty"`
+	Input      map[string]string  `yaml:"input,omitempty"`
+	Output     map[string]string  `yaml:"output,omitempty"`
 	Timeout    string             `yaml:"timeout,omitempty"`
+	Delay      *string            `yaml:"delay,omitempty"`
 	Compensate *string            `yaml:"compensate,omitempty"`
 	Result     *domain.SagaResult `yaml:"result,omitempty"`
 	On         map[string]string  `yaml:"on,omitempty"`

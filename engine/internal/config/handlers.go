@@ -17,7 +17,7 @@ type HandlersConfig struct {
 	CallTimeout    time.Duration
 	Endpoints      []string `yaml:"endpoints"`
 
-	connections []*grpc.ClientConn
+	connections map[string]*grpc.ClientConn
 }
 
 func (c *HandlersConfig) Validate() error {
@@ -33,21 +33,29 @@ func (c *HandlersConfig) Validate() error {
 	return nil
 }
 
+func (c *HandlersConfig) GetHandlerConnection(serviceName string) (*grpc.ClientConn, bool) {
+	conn, ok := c.connections[serviceName]
+	if !ok {
+		return nil, false
+	}
+	return conn, true
+}
+
 func (c *HandlersConfig) parseEndpoints() error {
-	c.connections = make([]*grpc.ClientConn, 0, len(c.Endpoints))
+	c.connections = make(map[string]*grpc.ClientConn)
 	for _, endpoint := range c.Endpoints {
 		parts := strings.Split(endpoint, ":")
-		if len(parts) != 2 {
+		if len(parts) != 3 {
 			return fmt.Errorf("invalid handler: %s", endpoint)
 		}
-		if _, err := strconv.Atoi(parts[1]); err != nil {
+		if _, err := strconv.Atoi(parts[2]); err != nil {
 			return fmt.Errorf("invalid port in handler: %s", endpoint)
 		}
-		conn, err := c.createConnection(endpoint)
+		conn, err := c.createConnection(fmt.Sprintf("%s:%s", parts[1], parts[2]))
 		if err != nil {
 			return fmt.Errorf("create connection for endpoint %s: %w", endpoint, err)
 		}
-		c.connections = append(c.connections, conn)
+		c.connections[parts[0]] = conn
 	}
 	return nil
 }

@@ -589,6 +589,261 @@ func TestParseStep(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, step.Transitions, 6)
 	})
+
+	t.Run("valid input with runtime path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"userId": "${runtime.user_id}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Input)
+		assert.Equal(t, "${runtime.user_id}", step.Input["userId"])
+	})
+
+	t.Run("valid input with input path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"orderId": "${input.order_id}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Input)
+	})
+
+	t.Run("valid input with meta path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"traceId": "${meta.trace_id}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Input)
+	})
+
+	t.Run("valid input with nested path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"config": "${input.config.nested.value}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Input)
+	})
+
+	t.Run("invalid input path - missing $", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"userId": "runtime.user_id"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input path")
+	})
+
+	t.Run("invalid input path - wrong prefix", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"userId": "${wrong.user_id}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input path")
+	})
+
+	t.Run("invalid input variable name - starts with number", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"123user": "${runtime.user_id}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input variable name")
+	})
+
+	t.Run("invalid input variable name - special chars", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"user!name": "${runtime.user_id}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input variable name")
+	})
+
+	t.Run("valid output with result path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"result.order_id": "${result.order_id}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Output)
+	})
+
+	t.Run("valid output with error path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"runtime.lastError": "${error.message}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Output)
+	})
+
+	t.Run("valid output with input path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"input.cachedValue": "${result.value}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Output)
+	})
+
+	t.Run("valid output with meta path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"meta.timestamp": "${result.timestamp}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Output)
+	})
+
+	t.Run("valid output with nested path", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"result.data.nested": "${result.data.nested}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Output)
+	})
+
+	t.Run("invalid output source path - missing $", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"result.order_id": "result.order_id"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input path")
+	})
+
+	t.Run("invalid output source path - wrong prefix", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"result.order_id": "${wrong.order_id}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input path")
+	})
+
+	t.Run("invalid output destination path - starts with number", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"123result": "${result.value}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input variable name")
+	})
+
+	t.Run("invalid output destination path - wrong prefix", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Output:  map[string]string{"wrong.path": "${result.value}"},
+			On:      map[string]string{},
+		}
+		_, err := parseStep(raw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid input variable name")
+	})
+
+	t.Run("valid input and output together", func(t *testing.T) {
+		raw := RawStep{
+			Id:      "step1",
+			Kind:    domain.StepKindAction,
+			Timeout: "10s",
+			Handler: &RawHandler{Service: "svc1", Method: "Do"},
+			Input:   map[string]string{"userId": "${input.user_id}"},
+			Output:  map[string]string{"runtime.userId": "${result.user_id}"},
+			On:      map[string]string{"committed": "step2"},
+		}
+		step, err := parseStep(raw)
+		require.NoError(t, err)
+		assert.NotNil(t, step.Input)
+		assert.NotNil(t, step.Output)
+	})
 }
 
 func TestEnums(t *testing.T) {
