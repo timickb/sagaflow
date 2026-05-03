@@ -8,6 +8,7 @@ import (
 	"github.com/timickb/sagaflow/lib/db"
 	"github.com/timickb/sagaflow/services/payments/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OrderRepository struct {
@@ -33,11 +34,21 @@ func (r *OrderRepository) Create(ctx context.Context, order *domain.Order) error
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
-func (r *OrderRepository) UpdateDetails(ctx context.Context, id uuid.UUID, details []byte) error {
-	return r.db.WithContext(ctx).
-		Model(&domain.Order{}).
+func (r *OrderRepository) UpdateDetails(ctx context.Context, id uuid.UUID, details []byte) (*domain.Order, error) {
+	var order domain.Order
+	tx := r.db.WithContext(ctx).
+		Model(&order).
+		Clauses(clause.Returning{}).
 		Where("id = ?", id).
-		Update("details", details).Error
+		Update("details", details)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return nil, nil
+	}
+	return &order, nil
+
 }
 
 func (r *OrderRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.OrderStatus) error {

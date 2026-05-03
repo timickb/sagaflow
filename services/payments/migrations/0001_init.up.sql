@@ -40,7 +40,7 @@ create table payments
 );
 
 
--- Таблица для событий, фиксируемых паттерном transactional outbox
+-- Таблица для событий оркестратора, фиксируемых паттерном transactional outbox
 create table if not exists outbox_events
 (
     id            uuid primary key,
@@ -51,7 +51,19 @@ create table if not exists outbox_events
     created_at    timestamptz not null default now()
 );
 
+-- Таблица для событий аналитики
+create table if not exists outbox_analytics_events
+(
+    id            uuid primary key,
+    aggregatetype text        not null,
+    aggregateid   text        not null,
+    type          text        not null,
+    payload       jsonb       not null,
+    created_at    timestamptz not null default now()
+);
+
 create index if not exists idx_outbox_events_created_at on outbox_events (created_at);
+create index if not exists idx_outbox_analytics_events_created_at on outbox_analytics_events (created_at);
 create index if not exists idx_payments_order_id on payments (order_id);
 create index if not exists idx_payments_status on payments (status);
 
@@ -74,4 +86,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 
 DROP PUBLICATION IF EXISTS payments_outbox_pub;
 CREATE PUBLICATION payments_outbox_pub FOR TABLE public.outbox_events;
+
+DROP PUBLICATION IF EXISTS payments_outbox_analytics_pub;
+CREATE PUBLICATION payments_outbox_analytics_pub FOR TABLE public.outbox_analytics_events;
 

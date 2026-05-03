@@ -38,7 +38,7 @@ func (s *AnalyticsService) RebuildOrderProjection(ctx context.Context, payload [
 		return fmt.Errorf("unmarshal payload: %w", err)
 	}
 
-	if err := s.chRepo.InsertFromPayload(ctx, event.OrderID, event.UserID, event.Status, event.Version); err != nil {
+	if err := s.chRepo.InsertOrderEvent(ctx, &event); err != nil {
 		return fmt.Errorf("insert from payload: %w", err)
 	}
 

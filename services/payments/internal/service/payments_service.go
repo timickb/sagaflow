@@ -22,25 +22,28 @@ type CaptureResult struct {
 }
 
 type PaymentsService struct {
-	orderRepo   *repository.OrderRepository
-	paymentRepo *repository.PaymentRepository
-	outboxRepo  *repository.OutboxRepository
-	transactor  domain.Transactor
-	paymentProv payment.PaymentProvider
+	orderRepo           *repository.OrderRepository
+	paymentRepo         *repository.PaymentRepository
+	outboxRepo          *repository.OutboxRepository
+	aanlyticsOutboxRepo *repository.AnalyticsOutboxRepository
+	transactor          domain.Transactor
+	paymentProv         payment.PaymentProvider
 }
 
 func NewPaymentsService(
 	orderRepo *repository.OrderRepository,
 	paymentRepo *repository.PaymentRepository,
 	outboxRepo *repository.OutboxRepository,
+	aanlyticsOutboxRepo *repository.AnalyticsOutboxRepository,
 	transactor domain.Transactor,
 	paymentProv payment.PaymentProvider,
 ) *PaymentsService {
 	return &PaymentsService{
-		orderRepo:   orderRepo,
-		paymentRepo: paymentRepo,
-		outboxRepo:  outboxRepo,
-		transactor:  transactor,
-		paymentProv: paymentProv,
+		orderRepo:           orderRepo,
+		paymentRepo:         paymentRepo,
+		outboxRepo:          outboxRepo,
+		aanlyticsOutboxRepo: aanlyticsOutboxRepo,
+		transactor:          transactor,
+		paymentProv:         paymentProv,
 	}
 }

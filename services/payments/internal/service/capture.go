@@ -34,7 +34,8 @@ func (s *PaymentsService) Capture(
 			return captureErr
 		}
 
-		if err := s.orderRepo.UpdateDetails(ctx, orderID, details); err != nil {
+		orderEntity, err := s.orderRepo.UpdateDetails(ctx, orderID, details)
+		if err != nil {
 			captureErr = fmt.Errorf("update order details: %w", err)
 			return captureErr
 		}
@@ -99,8 +100,8 @@ func (s *PaymentsService) Capture(
 			}
 		}
 
-		// Записываем событие в outbox
-		outboxEvent := &broker.SagaStepResultEvent{
+		// Записываем событие саги в outbox
+		sagaOutboxEvent := &broker.SagaStepResultEvent{
 			Ref: broker.SagaStepRef{
 				SagaId:      sagaInstanceID,
 				StepName:    stepID,
@@ -117,9 +118,13 @@ func (s *PaymentsService) Capture(
 			},
 			Error: errorInfo,
 		}
-
-		if err := s.outboxRepo.PushSagaStepResultEvent(ctx, outboxEvent); err != nil {
+		if err = s.outboxRepo.PushSagaStepResultEvent(ctx, sagaOutboxEvent); err != nil {
 			captureErr = fmt.Errorf("push outbox event: %w", err)
+			return captureErr
+		}
+		// Записываем событие аналитики в outbox
+		if err = s.aanlyticsOutboxRepo.PushOrderAnalyticsEvent(ctx, orderEntity); err != nil {
+			captureErr = fmt.Errorf("push analytics outbox event: %w", err)
 			return captureErr
 		}
 

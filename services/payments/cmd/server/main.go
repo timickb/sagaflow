@@ -38,6 +38,7 @@ func main() {
 	orderRepo := repository.NewOrderRepository(pgDb)
 	paymentRepo := repository.NewPaymentRepository(pgDb)
 	outboxRepo := repository.NewOutboxRepository(outbox.NewRepository(pgDb))
+	analyticsOutboxRepo := repository.NewAnalyticsOutboxRepository(pgDb)
 	transactor := db.NewTransactor(pgDb)
 
 	// Инициализация платежного провайдера (заглушка)
@@ -48,6 +49,7 @@ func main() {
 		orderRepo,
 		paymentRepo,
 		outboxRepo,
+		analyticsOutboxRepo,
 		transactor,
 		paymentProvider,
 	)

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/services/analytics/internal/domain"
 )
 
@@ -42,54 +41,32 @@ func (r *Repository) InsertOrderEvent(ctx context.Context, event *domain.OrderEv
 	now := time.Now().UTC()
 
 	fctOrder := domain.FctOrder{
-		OrderID:   event.OrderID,
-		UserID:    event.UserID,
-		Status:    event.Status,
-		Version:   event.Version,
-		CreatedAt: now,
-		UpdatedAt: now,
-		LoadedAt:  now,
+		OrderID:     event.OrderId,
+		UserID:      event.UserId,
+		Status:      event.Status,
+		TotalAmount: event.TotalAmount,
+		Currnecy:    event.Currency,
+		Version:     event.Version,
+		CreatedAt:   event.CreatedAt,
+		UpdatedAt:   event.UpdatedAt,
+		LoadedAt:    now,
 	}
 
-	// Используем простой INSERT запрос
 	query := `
-		INSERT INTO fct_orders (order_id, user_id, status, version, created_at, updated_at, loaded_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO fct_orders (order_id, user_id, status, total_amount, currency, version, created_at, updated_at, loaded_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	err := r.ch.Exec(ctx, query,
 		fctOrder.OrderID,
 		fctOrder.UserID,
 		fctOrder.Status,
+		fctOrder.TotalAmount,
+		fctOrder.Currnecy,
 		fctOrder.Version,
 		fctOrder.CreatedAt,
 		fctOrder.UpdatedAt,
 		fctOrder.LoadedAt,
-	)
-	if err != nil {
-		return fmt.Errorf("clickhouse insert: %w", err)
-	}
-
-	return nil
-}
-
-// InsertFromPayload вставляет запись на основе payload (для gRPC Handle)
-func (r *Repository) InsertFromPayload(ctx context.Context, orderID, userID uuid.UUID, status string, version uint32) error {
-	now := time.Now().UTC()
-
-	query := `
-		INSERT INTO fct_orders (order_id, user_id, status, version, created_at, updated_at, loaded_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`
-
-	err := r.ch.Exec(ctx, query,
-		orderID,
-		userID,
-		status,
-		version,
-		now,
-		now,
-		now,
 	)
 	if err != nil {
 		return fmt.Errorf("clickhouse insert: %w", err)

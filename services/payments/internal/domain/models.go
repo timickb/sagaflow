@@ -22,6 +22,7 @@ type Order struct {
 	Status      OrderStatus     `gorm:"type:text;not null;default:'PENDING'" json:"status"`
 	TotalAmount float64         `gorm:"type:numeric(12,2);not null" json:"total_amount"`
 	Currency    string          `gorm:"type:text;not null;default:'USD'" json:"currency"`
+	Version     int             `gorm:"type:int;not null" json:"version"`
 	Details     json.RawMessage `gorm:"type:jsonb;not null;default:'{}'" json:"details"`
 	CreatedAt   time.Time       `gorm:"not null;default:now()" json:"created_at"`
 	UpdatedAt   time.Time       `gorm:"not null;default:now()" json:"updated_at"`
@@ -58,4 +59,15 @@ type Payment struct {
 
 func (Payment) TableName() string {
 	return "payments"
+}
+
+type OrderAnalyticsEvent struct {
+	OrderId     uuid.UUID `json:"order_id,omitempty"`
+	UserId      uuid.UUID `json:"user_id,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	Currency    string    `json:"currency,omitempty"`
+	TotalAmount float64   `json:"total_amount,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Version     int       `json:"version,omitempty"`
 }
