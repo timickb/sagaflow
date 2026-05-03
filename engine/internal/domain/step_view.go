@@ -17,7 +17,7 @@ type StepView struct {
 	// Status - статус шага
 	Status StepStatus
 	// EffectState - статус фиксации результата обработчика шага
-	EffectState StepEffectState
+	EffectState *StepEffectState
 	// Attempt - номер попытки выполнения
 	Attempt          int
 	WorkerInstanceId *string

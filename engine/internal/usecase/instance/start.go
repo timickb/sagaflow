@@ -24,7 +24,21 @@ func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (inst
 	}
 	dto.StartStepName = sagaDef.StartStepId
 
-	// TODO: собрать InputData из startStepDef.Input и sagaDef.Inputs
+	inputDataRaw := make(map[string]any)
+	for _, inputDef := range startStepDef.Inputs {
+		if inputDef.SourceNamespace != domain.StepInputSourceInputContext {
+			return uuid.Nil, errors.New("start step input data could refer only to initial context")
+		}
+		data, findErr := dto.InitialContext.Find(inputDef.SourcePath)
+		if findErr != nil {
+			return uuid.Nil, fmt.Errorf("find path in initial context: %w", findErr)
+		}
+		inputDataRaw[inputDef.DestinationParam] = data
+	}
+	inputData, err := domain.NewJsonInstanceContextFromAny(inputDataRaw)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("create JsonInstanceContext for input data: %w", err)
+	}
 
 	err = u.transactor.Transaction(ctx, func(ctx context.Context) error {
 		instanceId, err = u.repo.Create(ctx, dto)
@@ -35,7 +49,7 @@ func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (inst
 			InstanceId: instanceId,
 			StepName:   sagaDef.StartStepId,
 			StepOrder:  1,
-			InputData:  nil,
+			InputData:  inputData,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save start step: %w", err)

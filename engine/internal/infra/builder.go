@@ -148,6 +148,7 @@ func (b *Builder) buildRunner() error {
 	b.runner = worker.NewRunner(
 		b.cfg.Runner,
 		b.cfg.Handlers,
+		b.cfg.Verifiers,
 		repo.NewInstanceRepo(b.db),
 		repo.NewStepRepo(b.db),
 		db.NewTransactor(b.db),

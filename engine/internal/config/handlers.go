@@ -9,12 +9,14 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // HandlersConfig - конфигурация подключений к сервисам-обработчикам шагов саг
 type HandlersConfig struct {
 	CallTimeoutRaw string `yaml:"call_timeout"`
 	CallTimeout    time.Duration
+	TLS            bool     `yaml:"tls"`
 	Endpoints      []string `yaml:"endpoints"`
 
 	connections map[string]*grpc.ClientConn
@@ -61,10 +63,11 @@ func (c *HandlersConfig) parseEndpoints() error {
 }
 
 func (c *HandlersConfig) createConnection(endpoint string) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})),
+	cred := insecure.NewCredentials()
+	if c.TLS {
+		cred = credentials.NewTLS(&tls.Config{})
 	}
-	conn, err := grpc.NewClient(endpoint, opts...)
+	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(cred))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create grpc connection: %w", err)
 	}

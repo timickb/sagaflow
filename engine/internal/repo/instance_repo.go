@@ -77,7 +77,8 @@ func (r *instanceRepo) RemoveLock(ctx context.Context, id uuid.UUID) error {
 func (r *instanceRepo) MakeTransition(ctx context.Context, dto *domain.InstanceTransitionDto) error {
 	updateMap := dbstruct.NewSagaInstanceMakeTransitionUpdateMap(dto)
 	err := r.db.WithTxSupport(ctx).
-		Model(&dbstruct.DBSagaInstance{SagaId: dto.Id}).
+		Model(&dbstruct.DBSagaInstance{}).
+		Where("saga_id = ?", dto.Id).
 		Updates(updateMap).Error
 	if err != nil {
 		return fmt.Errorf("make instance transition: %w", err)
@@ -130,12 +131,13 @@ func (r *instanceRepo) GetForEvent(
 	now := time.Now()
 	lockedTill := now.Add(lockExpire)
 	suitableStatuses := []domain.InstanceStatus{
+		domain.InstanceStatusPending,
 		domain.InstanceStatusRunning,
 		domain.InstanceStatusCompensating,
 		domain.InstanceStatusVerifying,
 	}
 
-	var instance *dbstruct.DBSagaInstance
+	var instance dbstruct.DBSagaInstance
 
 	query := r.db.WithTxSupport(ctx).
 		Model(&instance).

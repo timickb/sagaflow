@@ -56,7 +56,9 @@ func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResu
 			}
 			return nil
 		})
-		log.Error().Err(dbErr).Msgf("Failed to perform transition for instance %v", instance.SagaId)
+		if dbErr != nil {
+			log.Error().Err(dbErr).Msgf("Failed to perform transition for instance %v", instance.SagaId)
+		}
 		err = dbErr
 	}()
 

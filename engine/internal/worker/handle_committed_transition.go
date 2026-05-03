@@ -35,7 +35,7 @@ func (r *Runner) handleCommittedTransition(
 		Id:             instance.SagaId,
 		NextStepName:   nextStepName,
 		ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
-		Status:         nextStepDef.Kind.ToInstanceStatus(instance.Status),
+		Status:         nextStepDef.ToInstanceStatus(instance.Status),
 	}
 	if len(event.Result) > 0 {
 		var newContext domain.InstanceContext
@@ -52,13 +52,30 @@ func (r *Runner) handleCommittedTransition(
 		}
 		transitionDto.RuntimeContext = newContext
 	}
+	inputData, err := domain.NewStepInputContext(
+		nextStepDef.Inputs,
+		instance.InitialContext,
+		transitionDto.RuntimeContext,
+	)
+	if err != nil {
+		log.Error().Msgf(
+			"Failed to build input data for step %s for instance %v",
+			event.Ref.StepName, instance.SagaId,
+		)
+		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonBuildStepInputData), nil
+	}
 	return &eventHandleResult{
 		InstanceTransitionDto: transitionDto,
 		StepCreateDto: &domain.StepCreateDto{
 			InstanceId: instance.SagaId,
 			StepName:   nextStepName,
 			StepOrder:  currentStep.Order + 1,
-			InputData:  transitionDto.RuntimeContext.GetRaw(),
+			InputData:  inputData,
+		},
+		StepUpdateDto: &domain.StepUpdateDto{
+			InstanceId: instance.SagaId,
+			StepName:   currentStepDef.Id,
+			Status:     utils.Ptr(domain.StepStatusCommitted),
 		},
 	}, nil
 }

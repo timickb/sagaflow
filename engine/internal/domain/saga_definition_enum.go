@@ -35,31 +35,30 @@ const (
 	OutcomeFailed StepOutcome = "failed"
 	// OutcomeTimeout - выполнение шага не уложилось в заданный таймаут
 	OutcomeTimeout StepOutcome = "timeout"
-	// OutcomePassed - проверка успешно пройдена (для verify шагов)
-	OutcomePassed StepOutcome = "passed"
-	// OutcomeVerificationFailed - обнаружено расхождение в данных (для verify шагов)
-	OutcomeVerificationFailed StepOutcome = "verification_failed"
+	// OutcomeMatched - проверка успешно пройдена (для verify шагов)
+	OutcomeMatched StepOutcome = "passed"
+	// OutcomeUnmatched - обнаружено расхождение в данных (для verify шагов)
+	OutcomeUnmatched StepOutcome = "unmatched"
 
-	VerifierTypeSql       VerifierType = "sql"
-	VerifierTypeComposite VerifierType = "composite"
-	VerifierTypeApi       VerifierType = "api"
+	VerifierTypeSql VerifierType = "sql"
+	VerifierTypeApi VerifierType = "api"
 
 	RetryBackoffTypeFixed       RetryBackoffType = "fixed"
 	RetryBackoffTypeExponential RetryBackoffType = "exponential"
 
 	// SagaResultCompleted - сага завершена успешно
-	SagaResultCompleted SagaResult = "COMPLETED"
+	SagaResultCompleted SagaResult = SagaResult(InstanceStatusCompleted)
 	// SagaResultFailed - не удалось завершить сагу
-	SagaResultFailed SagaResult = "FAILED"
+	SagaResultFailed SagaResult = SagaResult(InstanceStatusFailed)
 	// SagaResultCompensated - сага завершена с компенсацией шагов
-	SagaResultCompensated SagaResult = "COMPENSATED"
+	SagaResultCompensated SagaResult = SagaResult(InstanceStatusCompensated)
 	// SagaResultInconsistent - не удалось подтвердить end-to-end консистентность
-	SagaResultInconsistent SagaResult = "INCONSISTENT"
+	SagaResultInconsistent SagaResult = SagaResult(InstanceStatusInconsistent)
 )
 
 func (o StepOutcome) IsValid() bool {
 	switch o {
-	case OutcomeCommitted, OutcomeRejected, OutcomeFailed, OutcomeTimeout, OutcomePassed, OutcomeVerificationFailed:
+	case OutcomeCommitted, OutcomeRejected, OutcomeFailed, OutcomeTimeout, OutcomeMatched, OutcomeUnmatched:
 		return true
 	default:
 		return false
@@ -77,7 +76,7 @@ func (r SagaResult) IsValid() bool {
 
 func (r VerifierType) IsValid() bool {
 	switch r {
-	case VerifierTypeSql, VerifierTypeComposite, VerifierTypeApi:
+	case VerifierTypeSql, VerifierTypeApi:
 		return true
 	default:
 		return false
@@ -93,9 +92,9 @@ func (r RetryBackoffType) IsValid() bool {
 	}
 }
 
-// ToInstanceStatus - в какой статус нужно перевести экземпляр, если тип следующего шага = StepKind?
-func (s StepKind) ToInstanceStatus(currentStatus InstanceStatus) (newStatus *InstanceStatus) {
-	switch s {
+// ToInstanceStatus - в какой статус нужно перевести экземпляр, если тип следующего шага = s.Kind?
+func (s DefinitionStep) ToInstanceStatus(currentStatus InstanceStatus) (newStatus *InstanceStatus) {
+	switch s.Kind {
 	case StepKindAction:
 		return utils.Ptr(InstanceStatusRunning)
 	case StepKindCompensate:
@@ -107,7 +106,7 @@ func (s StepKind) ToInstanceStatus(currentStatus InstanceStatus) (newStatus *Ins
 		case InstanceStatusCompensating:
 			return utils.Ptr(InstanceStatusCompensated)
 		default:
-			return utils.Ptr(InstanceStatusCompleted)
+			return utils.Ptr(InstanceStatus(*s.Result))
 		}
 	default:
 		return nil

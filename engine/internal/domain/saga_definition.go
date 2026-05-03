@@ -21,8 +21,8 @@ type DefinitionStep struct {
 	Verifier *Verifier
 	Result   *SagaResult
 
-	Input  map[string]string
-	Output map[string]string
+	Inputs  []StepInputParam
+	Outputs []StepOutputParam
 
 	Retry   *RetryPolicy
 	Timeout time.Duration
@@ -42,7 +42,11 @@ type Verifier struct {
 	Type       VerifierType
 	Datasource string
 	Query      string
-	Checks     []string
+	Expect     VerifierExpectModel
+}
+
+type VerifierExpectModel struct {
+	Equals any
 }
 
 type RetryPolicy struct {

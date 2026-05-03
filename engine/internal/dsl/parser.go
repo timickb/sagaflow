@@ -11,9 +11,8 @@ import (
 )
 
 var (
-	inputDstRegexp  = regexp.MustCompile(`^[a-zA-Z_-][a-zA-Z0-9_-]*$`)
-	inputSrcRegexp  = regexp.MustCompile(`^\$\{(?:runtime|input|meta)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*\}$`)
-	outputDstRegexp = regexp.MustCompile(`^(?:runtime|input|meta)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*$`)
+	dstVarRegexp    = regexp.MustCompile(`^[a-zA-Z_-][a-zA-Z0-9_-]*$`)
+	inputSrcRegexp  = regexp.MustCompile(`^\$\{(?:runtime|input)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*\}$`)
 	outputSrcRegexp = regexp.MustCompile(`^\$\{(?:result|error)\.[a-zA-Z_-]+(?:\.[a-zA-Z_-]+)*\}$`)
 )
 
@@ -122,32 +121,46 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 
 	// Входные данные
 	if step.Input != nil {
-		for from, to := range step.Input {
-			if !inputSrcRegexp.MatchString(to) {
-				return nil, fmt.Errorf("invalid input source %s", to)
+		parsedStep.Inputs = make([]domain.StepInputParam, 0, len(step.Input))
+		for dst, src := range step.Input {
+			if !inputSrcRegexp.MatchString(src) {
+				return nil, fmt.Errorf("invalid input source %s", src)
 			}
-			if !inputDstRegexp.MatchString(from) {
-				return nil, fmt.Errorf("invalid input destination %s", from)
+			if !dstVarRegexp.MatchString(dst) {
+				return nil, fmt.Errorf("invalid input destination %s", dst)
 			}
+			src = src[2 : len(src)-1]
+			srcParts := splitFirst(src, ".")
+			parsedStep.Inputs = append(parsedStep.Inputs, domain.StepInputParam{
+				SourceNamespace:  domain.StepInputSource(srcParts[0]),
+				SourcePath:       srcParts[1],
+				DestinationParam: dst,
+			})
 		}
-		parsedStep.Input = step.Input
 	}
 
 	// Выходные данные
 	if step.Output != nil {
-		for from, to := range step.Output {
-			if !outputSrcRegexp.MatchString(to) {
-				return nil, fmt.Errorf("invalid output source %s", to)
+		parsedStep.Outputs = make([]domain.StepOutputParam, 0, len(step.Output))
+		for dst, src := range step.Output {
+			if !outputSrcRegexp.MatchString(src) {
+				return nil, fmt.Errorf("invalid output source %s", src)
 			}
-			if !outputDstRegexp.MatchString(from) {
-				return nil, fmt.Errorf("invalid output destination %s", from)
+			if !dstVarRegexp.MatchString(dst) {
+				return nil, fmt.Errorf("invalid output destination %s", dst)
 			}
+			src = src[2 : len(src)-1]
+			srcParts := splitFirst(src, ".")
+			parsedStep.Outputs = append(parsedStep.Outputs, domain.StepOutputParam{
+				SourceNamespace:  domain.StepOutputSource(srcParts[0]),
+				SourceParam:      srcParts[1],
+				DestinationParam: dst,
+			})
 		}
-		parsedStep.Output = step.Output
 	}
 
 	switch step.Kind {
-	case domain.StepKindAction, domain.StepKindReconcile:
+	case domain.StepKindAction, domain.StepKindCompensate, domain.StepKindReconcile:
 		if step.Handler == nil {
 			return nil, errors.New("handler is required for action/reconcile step")
 		}
@@ -178,7 +191,9 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 			Type:       step.Verifier.Type,
 			Datasource: step.Verifier.Datasource,
 			Query:      step.Verifier.Query,
-			Checks:     step.Verifier.Checks,
+			Expect: domain.VerifierExpectModel{
+				Equals: step.Verifier.Expect.Equals,
+			},
 		}
 	case domain.StepKindTerminal:
 		if step.Result == nil || !(*step.Result).IsValid() {

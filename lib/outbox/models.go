@@ -9,12 +9,17 @@ import (
 	"github.com/timickb/sagaflow/lib/broker"
 )
 
+const (
+	stepResultTopic = "saga.step.result"
+)
+
 type DBEvent struct {
-	Id            uuid.UUID       `gorm:"id"`
-	AggregateType string          `gorm:"aggregatetype"`
-	AggregateId   string          `gorm:"aggregateid"`
-	Payload       json.RawMessage `gorm:"payload"`
-	CreatedAt     time.Time       `gorm:"created_at"`
+	Id            uuid.UUID
+	Aggregatetype string
+	Aggregateid   string
+	Type          string
+	Payload       json.RawMessage
+	CreatedAt     time.Time
 }
 
 // NewEventDtoFromStepResultEvent - создать запись для таблицы outbox_events из структуры SagaStepResultEvent
@@ -25,8 +30,9 @@ func NewEventDtoFromStepResultEvent(event *broker.SagaStepResultEvent) (*DBEvent
 	}
 	return &DBEvent{
 		Id:            uuid.New(),
-		AggregateType: "saga.step.result",
-		AggregateId:   "saga.step.result",
+		Aggregatetype: stepResultTopic,
+		Aggregateid:   stepResultTopic,
+		Type:          stepResultTopic,
 		Payload:       eventMarshaled,
 		CreatedAt:     time.Now(),
 	}, nil

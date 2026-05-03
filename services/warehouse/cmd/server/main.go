@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -9,102 +11,142 @@ import (
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/lib/db"
 	"github.com/timickb/sagaflow/lib/outbox"
-	"github.com/timickb/sagaflow/proto/gen/go/sagaflow"
-	pb "github.com/timickb/sagaflow/proto/gen/go/warehouse"
+	sagaflow "github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 	"github.com/timickb/sagaflow/services/warehouse/internal/repository"
 	"github.com/timickb/sagaflow/services/warehouse/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
-type warehouseServer struct {
-	pb.UnimplementedWarehouseServiceServer
-	service *service.WarehouseService
+const (
+	grpcServerAddr = ":50051"
+)
+
+// StepHandlerController реализует StepHandlerServiceServer
+type StepHandlerController struct {
+	sagaflow.UnimplementedStepHandlerServiceServer
+	svc *service.WarehouseService
 }
 
-func newWarehouseServer(svc *service.WarehouseService) *warehouseServer {
-	return &warehouseServer{
-		service: svc,
+func NewStepHandlerController(svc *service.WarehouseService) *StepHandlerController {
+	return &StepHandlerController{svc: svc}
+}
+
+// Handle обрабатывает запросы саги
+func (c *StepHandlerController) Handle(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
+	if req.Meta == nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString("meta is required"),
+		}, nil
+	}
+
+	action := req.Meta.GetAction()
+	switch action {
+	case "Reserve":
+		return c.handleReserve(ctx, req)
+	case "Release":
+		return c.handleRelease(ctx, req)
+	default:
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("unknown action: %s", action)),
+		}, nil
 	}
 }
 
-func (s *warehouseServer) Reserve(ctx context.Context, req *pb.ReserveRequest) (*pb.ReserveResponse, error) {
-	// Parse meta
-	scenarioInstanceID, err := uuid.Parse(req.Meta.SagaId)
-	if err != nil {
-		return nil, fmt.Errorf("invalid saga_id in meta: %w", err)
-	}
-
-	stepID := req.Meta.StepId
-	if stepID == "" {
-		stepID = "Reserve"
-	}
-
-	orderID, err := uuid.Parse(req.OrderId)
-	if err != nil {
-		return nil, fmt.Errorf("invalid order_id: %w", err)
-	}
-
-	// Convert items
-	var items []service.ReserveItem
-	for _, item := range req.Items {
-		items = append(items, service.ReserveItem{
-			SKU:      item.Sku,
-			Quantity: int(item.Quantity),
-		})
-	}
-
-	// Call service
-	result, err := s.service.Reserve(ctx, orderID, scenarioInstanceID, stepID, items)
-	if err != nil {
-		return nil, fmt.Errorf("reserve failed: %w", err)
-	}
-
-	// Convert movement IDs to strings
-	var movementIDs []string
-	for _, id := range result.MovementIDs {
-		movementIDs = append(movementIDs, id.String())
-	}
-
-	return &pb.ReserveResponse{
-		ReservationId: result.ReservationID.String(),
-		MovementIds:   movementIDs,
-	}, nil
+type reservePayload struct {
+	OrderID string                `json:"order_id"`
+	Items   []service.ReserveItem `json:"items"`
 }
 
-func (s *warehouseServer) Release(ctx context.Context, req *pb.ReleaseRequest) (*pb.ReleaseResponse, error) {
-	// Parse meta
-	scenarioInstanceID, err := uuid.Parse(req.Meta.SagaId)
+func (c *StepHandlerController) handleReserve(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
+	var payload reservePayload
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse payload: %v", err)),
+		}, nil
+	}
+
+	orderID, err := uuid.Parse(payload.OrderID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid saga_id in meta: %w", err)
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse order_id: %v", err)),
+		}, nil
 	}
 
-	stepID := req.Meta.StepId
-	if stepID == "" {
-		stepID = "Release"
-	}
-
-	orderID, err := uuid.Parse(req.OrderId)
+	sagaID, err := uuid.Parse(req.Meta.GetSagaId())
 	if err != nil {
-		return nil, fmt.Errorf("invalid order_id: %w", err)
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse saga_id: %v", err)),
+		}, nil
 	}
 
-	// Call service
-	result, err := s.service.Release(ctx, orderID, scenarioInstanceID, stepID)
+	_, err = c.svc.Reserve(ctx, orderID, sagaID, req.Meta.GetStepId(), payload.Items)
 	if err != nil {
-		return nil, fmt.Errorf("release failed: %w", err)
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("reserve failed: %v", err)),
+		}, fmt.Errorf("reserve failed: %w", err)
 	}
 
-	// Convert movement IDs to strings
-	var movementIDs []string
-	for _, id := range result.MovementIDs {
-		movementIDs = append(movementIDs, id.String())
-	}
-
-	return &pb.ReleaseResponse{
-		MovementIds: movementIDs,
-	}, nil
+	return &sagaflow.HandleResponse{Success: true}, nil
 }
+
+type releasePayload struct {
+	OrderID string `json:"order_id"`
+}
+
+func (c *StepHandlerController) handleRelease(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
+	var payload releasePayload
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse payload: %v", err)),
+		}, nil
+	}
+
+	orderID, err := uuid.Parse(payload.OrderID)
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse order_id: %v", err)),
+		}, nil
+	}
+
+	sagaID, err := uuid.Parse(req.Meta.GetSagaId())
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse saga_id: %v", err)),
+		}, nil
+	}
+
+	_, err = c.svc.Release(ctx, orderID, sagaID, req.Meta.GetStepId())
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("release failed: %v", err)),
+		}, nil
+	}
+
+	return &sagaflow.HandleResponse{Success: true}, nil
+}
+
+func ptrString(s string) *string {
+	return &s
+}
+
+// Ensure StepHandlerController implements StepHandlerServiceServer
+var _ sagaflow.StepHandlerServiceServer = (*StepHandlerController)(nil)
+
+// Sentinel errors for validation
+var (
+	ErrUnknownAction = errors.New("unknown action")
+)
 
 func main() {
 	ctx := context.Background()
@@ -126,19 +168,20 @@ func main() {
 		db.NewTransactor(pgDb),
 	)
 
-	lis, err := net.Listen("tcp", ":50051")
+	ctrl := NewStepHandlerController(svc)
+
+	// Запуск gRPC сервера
+	lis, err := net.Listen("tcp", grpcServerAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	s := grpc.NewServer()
-	pb.RegisterWarehouseServiceServer(s, newWarehouseServer(svc))
-	sagaflow.
-		reflection.Register(s)
+	grpcServer := grpc.NewServer()
+	sagaflow.RegisterStepHandlerServiceServer(grpcServer, ctrl)
+	reflection.Register(grpcServer)
 
-	log.Printf("Warehouse service listening on :50051")
-
-	if err = s.Serve(lis); err != nil {
+	log.Printf("starting gRPC server on %s", grpcServerAddr)
+	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

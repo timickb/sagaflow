@@ -1,13 +1,17 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 // VerificationSourceParams - параметры источника данных
 type VerificationSourceParams struct {
-	Type    DataSourceType `json:"type"`
-	Timeout time.Duration  `json:"timeout"`
+	Type    VerificationSourceType
+	Timeout time.Duration
 
-	DSN     string `json:"dsn,omitempty"`
-	BaseUrl string `json:"base_url,omitempty"`
-	Uri     string `json:"uri,omitempty"`
+	DSN string
+	// BaseUrl - префикс для URL запросов (для type=api)
+	BaseUrl string
+	// Headers - заголовки для HTTP-запросов (для type=api)
+	Headers map[string]string
 }

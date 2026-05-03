@@ -47,10 +47,15 @@ type RawHandler struct {
 }
 
 type RawVerifier struct {
-	Type       domain.VerifierType `yaml:"type"`
-	Datasource string              `yaml:"datasource,omitempty"`
-	Query      string              `yaml:"query,omitempty"`
-	Checks     []string            `yaml:"checks,omitempty"`
+	Type       domain.VerifierType    `yaml:"type"`
+	Datasource string                 `yaml:"datasource,omitempty"`
+	Query      string                 `yaml:"query,omitempty"`
+	Checks     []string               `yaml:"checks,omitempty"`
+	Expect     RawVerifierExpectModel `yaml:"expect,omitempty"`
+}
+
+type RawVerifierExpectModel struct {
+	Equals any `json:"equals,omitempty"`
 }
 
 type RawRetryPolicy struct {

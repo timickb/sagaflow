@@ -30,32 +30,22 @@ runner:
 
 handlers:
   call_timeout: 5s
+  tls: false
   endpoints:
     # service_name:host:port
-    - warehouse:warehouse:50051
+    - warehouse:localhost:50051
     - payments:payments:50052
-    - shop:shop:50053
-    - id:id:50054
-    - notifications:notifications:50055
-
-verification_sources:
-  orders_db:
-    type: postgres
-    dsn: "${ORDERS_DB_DSN}"
-    timeout: 3s
-  analytics_db:
-    type: clickhouse
-    dsn: "${CLICKHOUSE_DSN}"
-    timeout: 5s
-  payment_api:
-    type: rest
-    baseUrl: "${PAYMENT_API_URL}"
-    timeout: 2s
-  document_store:
-    type: mongo
-    uri: "${MONGO_URI}"
-    database: "orders"
-    timeout: 3s
 
 api:
   port: 3731
+
+verifiers:
+  data_sources:
+    payments_oltp:
+      type: postgres
+      timeout: 5s
+      dsn: jdbc:postgresql://localhost:5432/payments
+    payments_olap:
+      type: clickhouse
+      timeout: 5s
+      dsn: jdbc:postgresql://localhost:5432/payments

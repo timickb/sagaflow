@@ -36,7 +36,7 @@ func NewEventHandleNoTerminalStateResult(instanceId uuid.UUID, currentStepName s
 		StepUpdateDto: &domain.StepUpdateDto{
 			InstanceId: instanceId,
 			StepName:   currentStepName,
-			Status:     utils.Ptr(domain.StepStatusCompleted),
+			Status:     utils.Ptr(domain.StepStatusCommitted),
 		},
 	}
 }

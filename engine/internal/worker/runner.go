@@ -16,6 +16,7 @@ import (
 type Runner struct {
 	cfg          domain.RunnerConfig
 	handlers     domain.HandlersConfig
+	verifiers    domain.VerificationSourcesConfig
 	instanceRepo domain.InstanceRepository
 	stepRepo     domain.StepRepository
 	transactor   domain.Transactor
@@ -26,6 +27,7 @@ type Runner struct {
 func NewRunner(
 	cfg domain.RunnerConfig,
 	handlersCfg domain.HandlersConfig,
+	verifiersCfg domain.VerificationSourcesConfig,
 	instanceRepo domain.InstanceRepository,
 	stepRepo domain.StepRepository,
 	transactor domain.Transactor,
@@ -35,6 +37,7 @@ func NewRunner(
 	return &Runner{
 		cfg:          cfg,
 		handlers:     handlersCfg,
+		verifiers:    verifiersCfg,
 		instanceRepo: instanceRepo,
 		stepRepo:     stepRepo,
 		transactor:   transactor,
@@ -71,7 +74,6 @@ func (r *Runner) startWorker(ctx context.Context, idx int) {
 				if err != nil {
 					log.Error().Err(err).Msgf("Worker %d failed to take batch", idx)
 				}
-				log.Info().Msgf("Empty instances batch, sleep (worker %d)", idx)
 				time.Sleep(r.cfg.GetEmptyBatchDelay())
 				continue
 			}
@@ -102,7 +104,7 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 	}
 
 	switch instance.Status {
-	case domain.InstanceStatusPending, domain.InstanceStatusRunning:
+	case domain.InstanceStatusPending, domain.InstanceStatusRunning, domain.InstanceStatusCompensating:
 		// 1. Должен был задекларирован шаг, сохраненный в current_step_name
 		if utils.IsStrNilOrEmpty(instance.CurrentStepName) {
 			log.Error().Msgf("Instance %s has unexpected empty current_step_name", instance.SagaId)
@@ -149,6 +151,20 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 	log.Info().Msgf("Finish instance %v step handling", instance.SagaId)
 }
 
+func (r *Runner) executeStep(
+	ctx context.Context,
+	instance *domain.InstanceView,
+	stepDef *domain.DefinitionStep,
+	step *domain.StepView,
+) {
+	switch stepDef.Kind {
+	case domain.StepKindAction, domain.StepKindCompensate, domain.StepKindReconcile:
+		r.callHandler(ctx, instance, stepDef, step)
+	case domain.StepKindVerify:
+		r.callVerifier(ctx, instance, stepDef)
+	}
+}
+
 func (r *Runner) failInstance(
 	ctx context.Context,
 	instanceId uuid.UUID,
@@ -158,6 +174,7 @@ func (r *Runner) failInstance(
 	err := r.instanceRepo.Terminate(ctx, instanceId, &domain.InstanceTerminateDto{
 		ErrCode:    utils.Ptr(string(failReason)),
 		ErrMessage: msg,
+		Status:     domain.InstanceStatusFailed,
 	})
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to set instance %v failed (errcode=%v)", instanceId, failReason)

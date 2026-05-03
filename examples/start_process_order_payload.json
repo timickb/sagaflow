@@ -1,0 +1,15 @@
+{
+  "order_id": "00d78250-4667-11f1-b23a-27e9eca2cf53",
+  "user_id": "420ee038-4667-11f1-87c6-af1de9b3917f",
+  "items": [
+    {
+      "sku": "SKU-LAPTOP-001",
+      "quantity": 1
+    },
+    {
+      "sku": "SKU-MOUSE-001",
+      "quantity": 2
+    }
+  ],
+  "amount": 68000
+}

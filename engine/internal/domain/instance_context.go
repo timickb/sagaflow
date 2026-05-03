@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+var (
+	EmptyInstanceContext = &JsonInstanceContext{
+		raw:  []byte("{}"),
+		data: make(map[string]any),
+	}
+)
+
 type InstanceContext interface {
 	GetRaw() json.RawMessage
 	AppendMap(data map[string]any) (InstanceContext, error)
@@ -37,6 +44,33 @@ func NewJsonInstanceContextFromRaw(raw json.RawMessage) (*JsonInstanceContext, e
 }
 
 func NewJsonInstanceContextFromAny(data any) (*JsonInstanceContext, error) {
+	parsed, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal map: %w", err)
+	}
+	return &JsonInstanceContext{raw: parsed, data: data}, nil
+}
+
+func NewStepInputContext(stepInputs []StepInputParam, initialCtx, runtimeCtx InstanceContext) (*JsonInstanceContext, error) {
+	data := make(map[string]any)
+	for _, inputData := range stepInputs {
+		switch inputData.SourceNamespace {
+		case StepInputSourceInputContext:
+			value, findErr := initialCtx.Find(inputData.SourcePath)
+			if findErr != nil {
+				return nil, fmt.Errorf("find step input value in initial context: %w", findErr)
+			}
+			data[inputData.DestinationParam] = value
+		case StepInputSourceRuntimeContext:
+			value, findErr := runtimeCtx.Find(inputData.SourcePath)
+			if findErr != nil {
+				return nil, fmt.Errorf("find step input value in initial context: %w", findErr)
+			}
+			data[inputData.DestinationParam] = value
+		default:
+			return nil, fmt.Errorf("invalid step input source: %s", inputData.SourceNamespace)
+		}
+	}
 	parsed, err := json.Marshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("marshal map: %w", err)

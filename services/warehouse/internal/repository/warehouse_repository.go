@@ -71,7 +71,7 @@ func (r *WarehouseRepository) GetDefaultWarehouse(ctx context.Context) (*domain.
 }
 
 func (r *WarehouseRepository) UpdateBalanceWithLock(ctx context.Context, balance *domain.Balance) error {
-	result := r.db.WithTxSupport(ctx).
+	result := r.db.WithTxSupport(ctx).Table("balances").
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("warehouse_id = ? AND product_id = ? AND version = ?",
 			balance.WarehouseID, balance.ProductID, balance.Version).

@@ -22,7 +22,9 @@ type HandlersConfig interface {
 	GetHandlerConnection(serviceName string) (*grpc.ClientConn, bool)
 }
 
+// VerificationSourcesConfig - конфигурация подключений к источникам данных
 type VerificationSourcesConfig interface {
+	GetVerificationSourceParams(name string) (*VerificationSourceParams, error)
 }
 
 // === USECASES ===

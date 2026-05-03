@@ -33,12 +33,13 @@ func (r *Runner) handleFailedTransition(
 		}
 	}
 
-	if currentStepDef.Retry != nil && currentStepDef.Retry.MaxAttempts <= currentStep.Attempt && !resultIsNotRetriable {
+	if currentStepDef.Retry != nil && currentStepDef.Retry.MaxAttempts >= currentStep.Attempt && !resultIsNotRetriable {
 		// Еще остались ретраи
 		return &eventHandleResult{
 			InstanceTransitionDto: &domain.InstanceTransitionDto{
 				Id:              instance.SagaId,
 				ExecutionState:  utils.Ptr(domain.InstanceExecutionStateRunnable),
+				NextStepName:    currentStep.Name,
 				NextExecutionAt: utils.Ptr(calculateNextRetry(currentStepDef.Retry, currentStep)),
 				ErrCode:         utils.Ptr(string(domain.InstanceErrorCodeHandler)),
 				ErrMessage:      instanceErrMessage,
@@ -66,18 +67,37 @@ func (r *Runner) handleFailedTransition(
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonStepNotFound), nil
 	}
 
+	inputData, err := domain.NewStepInputContext(
+		nextStepDef.Inputs,
+		instance.InitialContext,
+		instance.RuntimeContext,
+	)
+	if err != nil {
+		log.Error().Msgf(
+			"Failed to build input data for step %s for instance %v",
+			event.Ref.StepName, instance.SagaId,
+		)
+		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonBuildStepInputData), nil
+	}
+
+	// если следующий шаг терминальный - сразу ставим ему COMMITTED статус
+	var newStepStatus *domain.StepStatus
+	if nextStepDef.Kind == domain.StepKindTerminal {
+		newStepStatus = utils.Ptr(domain.StepStatusCommitted)
+	}
 	return &eventHandleResult{
 		InstanceTransitionDto: &domain.InstanceTransitionDto{
 			Id:             instance.SagaId,
 			NextStepName:   nextStepDef.Id,
-			Status:         nextStepDef.Kind.ToInstanceStatus(instance.Status),
+			Status:         nextStepDef.ToInstanceStatus(instance.Status),
 			ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
 		},
 		StepCreateDto: &domain.StepCreateDto{
 			InstanceId: instance.SagaId,
 			StepName:   nextStepDef.Id,
 			StepOrder:  currentStep.Order + 1,
-			InputData:  instance.RuntimeContext.GetRaw(),
+			InputData:  inputData,
+			Status:     newStepStatus,
 		},
 		// ретраи исчерпаны -> исход текущего шага = failed
 		StepUpdateDto: &domain.StepUpdateDto{

@@ -6,9 +6,10 @@ type StepStatus string
 const (
 	StepStatusPending      StepStatus = "PENDING"
 	StepStatusRunning      StepStatus = "RUNNING"
-	StepStatusCompleted    StepStatus = "COMPLETED"
+	StepStatusCommitted    StepStatus = "COMMITTED"
 	StepStatusFailed       StepStatus = "FAILED"
 	StepStatusCompensating StepStatus = "COMPENSATING"
 	StepStatusCompensated  StepStatus = "COMPENSATED"
-	StepStatusInsonsistent StepStatus = "INSONSISTENT"
+	StepStatusVerifying    StepStatus = "VERIFYING"
+	StepStatusVerified     StepStatus = "VERIFIED"
 )

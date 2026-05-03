@@ -41,8 +41,8 @@ steps:
     compensate: ReleaseInventory
     retry:
       max_attempts: 5
-      delay: 2s
-      backoff: fixed
+      delay: 1s
+      backoff: exponential
     handler:
       service: warehouse
       method: Reserve
@@ -50,7 +50,7 @@ steps:
       items: ${input.items}
       order_id: ${input.order_id}
     output:
-      runtime.reservation_id: ${result.reservation_id}
+      reservation_id: ${result.reservation_id}
     on:
       committed: ChargePayment
       failed: Fail
@@ -93,13 +93,30 @@ steps:
       failed: Fail
       timeout: Fail
 
-  - id: VerifyOrderOLTP
+  - id: VerifyReservationOLTP
     kind: verify
-    delay: 10s
     timeout: 5s
     verifier:
       type: sql
       datasource: warehouse_postgres
+      query: |
+        SELECT count(*)
+        FROM reservations
+        WHERE order_id = ${input.order_id}
+          AND status = 'ACTIVE'
+      expect:
+        equals: 1
+    on:
+      passed: VerifyOrderOLTP
+      failed: ReleaseInventory
+      timeout: Fail
+
+  - id: VerifyOrderOLTP
+    kind: verify
+    timeout: 5s
+    verifier:
+      type: sql
+      datasource: payments_postgres
       query: |
         SELECT count(*)
         FROM reservations
@@ -114,6 +131,7 @@ steps:
 
   - id: VerifyAnalyticsMaterialization
     kind: verify
+    delay: 10s
     timeout: 5s
     verifier:
       type: sql
@@ -121,7 +139,8 @@ steps:
       query: |
         SELECT count()
         FROM fct_orders FINAL
-        WHERE order_id = :order_id
+        WHERE order_id = ${input.order_id}
+        AND status = 'PAID'
       expect:
         equals: 1
     on:

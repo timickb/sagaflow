@@ -15,11 +15,12 @@ type validatable interface {
 
 // Config - конфигурация сервиса
 type Config struct {
-	Postgres *db.PostgresConfig  `yaml:"postgres" env:"POSTGRES"`
-	Kafka    *broker.KafkaConfig `yaml:"kafka" env:"KAFKA"`
-	Runner   *RunnerConfig       `yaml:"runner" env:"RUNNER"`
-	Api      *APIConfig          `yaml:"api" env:"API"`
-	Handlers *HandlersConfig     `yaml:"handlers" env:"HANDLERS"`
+	Postgres  *db.PostgresConfig  `yaml:"postgres" env:"POSTGRES"`
+	Kafka     *broker.KafkaConfig `yaml:"kafka" env:"KAFKA"`
+	Runner    *RunnerConfig       `yaml:"runner" env:"RUNNER"`
+	Api       *APIConfig          `yaml:"api" env:"API"`
+	Handlers  *HandlersConfig     `yaml:"handlers" env:"HANDLERS"`
+	Verifiers *VerifiersConfig    `yaml:"verifiers" env:"VERIFIERS"`
 }
 
 // NewFromFile - создать конфиг из YAML файла
@@ -50,6 +51,7 @@ func (c *Config) Validate() error {
 		{"runner", c.Runner},
 		{"backoffice", c.Api},
 		{"handlers", c.Handlers},
+		{"verifiers", c.Verifiers},
 	}
 
 	for _, check := range checks {

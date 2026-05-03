@@ -56,6 +56,7 @@ func NewSagaInstance(id uuid.UUID, dto *domain.InstanceStartDto) *DBSagaInstance
 		IdempotencyKey:  idempotencyKey,
 		CorrelationId:   dto.CorrelationId,
 		InitialContext:  dto.InitialContext.GetRaw(),
+		RuntimeContext:  domain.EmptyInstanceContext.GetRaw(),
 		StartedAt:       now,
 		UpdatedAt:       now,
 	}

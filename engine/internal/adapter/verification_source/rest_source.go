@@ -10,8 +10,10 @@ import (
 type RESTSource struct {
 	client  *http.Client
 	baseUrl string
+	headers map[string]string
 }
 
 func (s *RESTSource) Verify(ctx context.Context, req *domain.VerificationRequest) (*domain.VerificationResult, error) {
+	// TODO: implement
 	panic("implement me")
 }

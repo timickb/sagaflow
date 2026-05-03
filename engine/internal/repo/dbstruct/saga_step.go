@@ -22,7 +22,7 @@ type DBSagaStep struct {
 	OutputData json.RawMessage
 	ErrorData  *json.RawMessage
 
-	EffectState domain.StepEffectState
+	EffectState *domain.StepEffectState
 
 	StartedAt  *time.Time
 	FinishedAt *time.Time
@@ -31,14 +31,19 @@ type DBSagaStep struct {
 
 // NewSagaStep - создать шаг экземпляра, ожидающий выполнения
 func NewSagaStep(dto *domain.StepCreateDto) *DBSagaStep {
+	status := domain.StepStatusPending
+	if dto.Status != nil {
+		status = *dto.Status
+	}
 	return &DBSagaStep{
-		SagaId:    dto.InstanceId,
-		StepName:  dto.StepName,
-		StepOrder: dto.StepOrder,
-		Status:    domain.StepStatusPending,
-		Attempt:   1,
-		InputData: dto.InputData,
-		UpdatedAt: time.Now(),
+		SagaId:     dto.InstanceId,
+		StepName:   dto.StepName,
+		StepOrder:  dto.StepOrder,
+		Status:     status,
+		Attempt:    1,
+		InputData:  dto.InputData.GetRaw(),
+		OutputData: domain.EmptyInstanceContext.GetRaw(),
+		UpdatedAt:  time.Now(),
 	}
 }
 

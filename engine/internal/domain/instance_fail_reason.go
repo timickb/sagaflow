@@ -20,4 +20,6 @@ const (
 	InstanceFailReasonInvalidHandler InstanceFailReason = "INVALID_HANDLER"
 	// InstanceFailReasonPayloadMarshaling - не удалось замаршалить входные данные шага
 	InstanceFailReasonPayloadMarshaling InstanceFailReason = "PAYLOAD_MARSHALING"
+	// InstanceFailReasonBuildStepInputData - не удалось найти нужные данные для определенного шага в контексте
+	InstanceFailReasonBuildStepInputData InstanceFailReason = "BUILD_STEP_INPUT_DATA"
 )

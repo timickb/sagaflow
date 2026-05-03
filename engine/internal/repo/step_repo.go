@@ -59,11 +59,9 @@ func (r *stepRepo) Create(ctx context.Context, dto *domain.StepCreateDto) (*doma
 // Update - обновить шаг
 func (r *stepRepo) Update(ctx context.Context, dto *domain.StepUpdateDto) error {
 	updateMap := dbstruct.NewSagaStepUpdatesMap(dto)
-	step := &dbstruct.DBSagaStep{
-		SagaId:   dto.InstanceId,
-		StepName: dto.StepName,
-	}
-	query := r.db.WithTxSupport(ctx).Model(step).Updates(updateMap)
+	query := r.db.WithTxSupport(ctx).Model(&dbstruct.DBSagaStep{}).
+		Where("saga_id = ? AND step_name = ?", dto.InstanceId, dto.StepName).
+		Updates(updateMap)
 	if query.Error != nil {
 		return fmt.Errorf("update saga step: %w", query.Error)
 	}
