@@ -68,6 +68,7 @@ steps:
       items: ${input.items}
       user_id: ${input.user_id}
       order_id: ${input.order_id}
+      amount: ${input.amount}
     on:
       committed: VerifyOrderOLTP
       rejected: ReleaseInventory
@@ -157,7 +158,7 @@ steps:
       delay: 5s
       backoff: fixed
     handler:
-      service: payments
+      service: analytics
       method: RebuildOrderProjection
       input:
         order_id: ${input.order_id}

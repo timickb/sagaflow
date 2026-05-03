@@ -11,6 +11,8 @@ create table orders
             check (status IN ('PENDING', 'PAID', 'CANCELLED', 'REFUNDED')),
     total_amount numeric(12, 2)                  not null,
     currency     text        default 'USD'::text not null,
+    details      jsonb                           not null default '{}'::jsonb,
+    version      integer                         not null default 1,
     created_at   timestamptz default now()       not null,
     updated_at   timestamptz default now()       not null
 );
