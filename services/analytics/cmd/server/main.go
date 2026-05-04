@@ -28,9 +28,9 @@ func main() {
 	// Конфигурация ClickHouse
 	chRepo, err := clickhouse.NewRepository(&clickhouse.Config{
 		Addresses: []string{"localhost:9000"},
-		Database:  "analytics",
+		Database:  "default",
 		Username:  "default",
-		Password:  "",
+		Password:  "default",
 	})
 	if err != nil {
 		log.Fatalf("create clickhouse repository: %v", err)
@@ -42,7 +42,7 @@ func main() {
 
 	// Kafka консьюмер
 	kafkaCfg := &consumer.KafkaConsumerConfig{
-		Brokers: []string{"localhost:9092"},
+		Brokers: []string{"localhost:29092"},
 		GroupID: "analytics-service",
 		Topic:   consumer.OrdersEventsTopic,
 	}

@@ -87,7 +87,7 @@ steps:
       service: warehouse
       method: Release
     input:
-      order_id: ${input.user_id}
+      order_id: ${input.order_id}
     on:
       committed: Rollback
       rejected: Fail

@@ -70,10 +70,11 @@ create table if not exists reservations
         ),
 
     scenario_instance_id uuid,
-    created_at           timestamptz not null default now(),
-
-    unique (order_id, product_id)
+    created_at           timestamptz not null default now()
 );
+
+create unique index if not exists reservations_order_id_product_id_uidx
+    on reservations(order_id, product_id) where status = 'ACTIVE';
 
 -- Тестовые данные
 -- warehouses

@@ -94,6 +94,9 @@ func NewSagaStepUpdatesMap(dto *domain.StepUpdateDto) map[string]interface{} {
 	}
 	if dto.Status != nil {
 		result["status"] = *dto.Status
+		if dto.Status.IsTerminal() {
+			result["finished_at"] = now
+		}
 	}
 	if dto.IncrementAttempt {
 		result["attempt"] = gorm.Expr("attempt + 1")

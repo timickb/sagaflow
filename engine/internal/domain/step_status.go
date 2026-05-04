@@ -13,3 +13,12 @@ const (
 	StepStatusVerifying    StepStatus = "VERIFYING"
 	StepStatusVerified     StepStatus = "VERIFIED"
 )
+
+func (s StepStatus) IsTerminal() bool {
+	switch s {
+	case StepStatusCompensated, StepStatusVerified, StepStatusFailed, StepStatusCommitted:
+		return true
+	default:
+		return false
+	}
+}

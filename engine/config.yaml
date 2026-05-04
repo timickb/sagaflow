@@ -34,8 +34,8 @@ handlers:
   endpoints:
     # service_name:host:port
     - warehouse:localhost:50051
-    - payments:payments:50052
-    - analytics:analytics:50053
+    - payments:localhost:50052
+    - analytics:localhost:50053
 
 api:
   port: 3731

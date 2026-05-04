@@ -69,6 +69,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: warehouse
       POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d warehouse" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   kafka:
     image: apache/kafka:4.2.0
@@ -109,6 +114,8 @@ services:
       kafka:
         condition: service_healthy
       payments_postgres:
+        condition: service_healthy
+      warehouse_postgres:
         condition: service_healthy
     ports:
       - "8083:8083"

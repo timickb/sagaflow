@@ -11,6 +11,7 @@ CREATE TABLE saga_instance
                    'RUNNING',
                    'COMPLETED',
                    'FAILED',
+                   'VERIFYING',
                    'COMPENSATING',
                    'COMPENSATED',
                    'INCONSISTENT'
