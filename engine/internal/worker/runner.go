@@ -21,6 +21,7 @@ type Runner struct {
 	stepRepo     domain.StepRepository
 	transactor   domain.Transactor
 	sagaCache    domain.SagaDefinitionCache
+	stepHandler  domain.StepHandler
 	publisher    *broker.KafkaStepResultWriter
 }
 
@@ -32,6 +33,7 @@ func NewRunner(
 	stepRepo domain.StepRepository,
 	transactor domain.Transactor,
 	sagaCache domain.SagaDefinitionCache,
+	stepHandler domain.StepHandler,
 	publisher *broker.KafkaStepResultWriter,
 ) *Runner {
 	return &Runner{
@@ -42,6 +44,7 @@ func NewRunner(
 		stepRepo:     stepRepo,
 		transactor:   transactor,
 		sagaCache:    sagaCache,
+		stepHandler:  stepHandler,
 		publisher:    publisher,
 	}
 }

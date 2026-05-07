@@ -39,15 +39,15 @@ func (r *AnalyticsOutboxRepository) PushOrderAnalyticsEvent(ctx context.Context,
 		return err
 	}
 	dbEvent := map[string]interface{}{
-		"id":            uuid.New(),
-		"aggregatetype": orderAnalyticsTopicName,
-		"aggregateid":   orderAnalyticsTopicName,
-		"type":          orderAnalyticsTopicName,
-		"payload":       payloadBytes,
-		"created_at":    time.Now(),
+		"id":             uuid.New(),
+		"aggregate_type": "Order",
+		"aggregate_id":   dto.ID.String(),
+		"event_type":     "RefreshOrderMaterialization",
+		"payload":        payloadBytes,
+		"created_at":     time.Now(),
 	}
 	err = r.db.WithTxSupport(ctx).
-		Table("outbox_analytics_events").
+		Table("domain_outbox_events").
 		Create(dbEvent).Error
 	if err != nil {
 		return fmt.Errorf("create outbox analytics event record: %w", err)

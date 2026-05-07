@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
 )
 
 // RunnerConfig - конфигурация обработчика экземпляров
@@ -19,7 +18,8 @@ type RunnerConfig interface {
 
 // HandlersConfig - конфигурация обработчиков локальных транзакций
 type HandlersConfig interface {
-	GetHandlerConnection(serviceName string) (*grpc.ClientConn, bool)
+	GetEndpoints() map[string]string
+	GetTLS() bool
 }
 
 // VerificationSourcesConfig - конфигурация подключений к источникам данных
@@ -72,7 +72,14 @@ type StepRepository interface {
 	Update(ctx context.Context, dto *StepUpdateDto) error
 }
 
+// === ADAPTERS ===
+
 // VerificationSource - адаптер для верификации данных в рамках сверочных шагов
 type VerificationSource interface {
 	Verify(ctx context.Context, req *VerificationRequest) (*VerificationResult, error)
+}
+
+// StepHandler - адаптер для вызова обработчиков шагов
+type StepHandler interface {
+	Call(ctx context.Context, dto *CallHandlerRequest) (*CallHandlerResult, error)
 }

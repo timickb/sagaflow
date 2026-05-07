@@ -17,9 +17,9 @@ const (
 
 type DBEvent struct {
 	Id            uuid.UUID
-	Aggregatetype string
-	Aggregateid   string
-	Type          string
+	AggregateType string
+	AggregateId   string
+	EventType     string
 	Payload       json.RawMessage
 	CreatedAt     time.Time
 }
@@ -32,14 +32,14 @@ func NewEventDtoFromStepResultEvent(event *broker.SagaStepResultEvent) (*DBEvent
 	}
 	return &DBEvent{
 		Id:            uuid.New(),
-		Aggregatetype: eventAggregateType,
-		Aggregateid:   event.Ref.SagaId.String(),
-		Type:          eventType,
+		AggregateType: eventAggregateType,
+		AggregateId:   event.Ref.SagaId.String(),
+		EventType:     eventType,
 		Payload:       eventMarshaled,
 		CreatedAt:     time.Now(),
 	}, nil
 }
 
 func (e *DBEvent) TableName() string {
-	return "outbox_events"
+	return "saga_outbox_events"
 }

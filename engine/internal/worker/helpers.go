@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/timickb/sagaflow/engine/internal/domain"
+	"github.com/timickb/sagaflow/lib/broker"
 )
 
 func calculateNextRetry(retryPolicy *domain.RetryPolicy, currentStep *domain.StepView) time.Time {
@@ -12,4 +13,32 @@ func calculateNextRetry(retryPolicy *domain.RetryPolicy, currentStep *domain.Ste
 		delay *= 2 * int64(currentStep.Attempt)
 	}
 	return currentStep.UpdatedAt.Add(time.Duration(delay) * time.Millisecond)
+}
+
+// mergeStepOutputToContext - добавить в runtime контекст сценария данные, объявленные
+// в параметре output выполненного шага
+func mergeStepOutputToContext(
+	instanceCtx domain.InstanceContext,
+	currentStepDef *domain.DefinitionStep,
+	event *broker.SagaStepResultEvent,
+) (domain.InstanceContext, error) {
+	if len(currentStepDef.Outputs) == 0 {
+		return instanceCtx, nil
+	}
+	dataToMerge := make(map[string]any)
+	for _, outputParam := range currentStepDef.Outputs {
+		switch outputParam.SourceNamespace {
+		case domain.StepOutputSourceResult:
+			value, ok := event.Result[outputParam.SourceParam]
+			if ok {
+				dataToMerge[outputParam.DestinationParam] = value
+			}
+		case domain.StepOutputSourceError:
+			value, ok := event.Error.Details[outputParam.SourceParam]
+			if ok {
+				dataToMerge[outputParam.DestinationParam] = value
+			}
+		}
+	}
+	return instanceCtx.AppendMap(dataToMerge)
 }

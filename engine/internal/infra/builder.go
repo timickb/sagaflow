@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog/log"
+	"github.com/timickb/sagaflow/engine/internal/adapter/step_handler"
 	"github.com/timickb/sagaflow/engine/internal/api"
 	"github.com/timickb/sagaflow/engine/internal/config"
 	"github.com/timickb/sagaflow/engine/internal/domain"
@@ -26,15 +27,16 @@ import (
 )
 
 type Builder struct {
-	ctx             context.Context
-	cfg             *config.Config
-	db              *db.Database
-	consumer        *broker.KafkaStepResultReader
-	publisher       *broker.KafkaStepResultWriter
-	runner          *worker.Runner
-	server          *grpc.Server
-	sagasCache      domain.SagaDefinitionCache
-	instanceUsecase domain.InstanceUsecase
+	ctx                context.Context
+	cfg                *config.Config
+	db                 *db.Database
+	consumer           *broker.KafkaStepResultReader
+	publisher          *broker.KafkaStepResultWriter
+	runner             *worker.Runner
+	server             *grpc.Server
+	sagasCache         domain.SagaDefinitionCache
+	instanceUsecase    domain.InstanceUsecase
+	stepHandlerAdapter domain.StepHandler
 }
 
 func NewBuilder(cfg *config.Config) (*Builder, error) {
@@ -51,6 +53,10 @@ func NewBuilder(cfg *config.Config) (*Builder, error) {
 	}
 	// бизнес-логика над экземплярами саг
 	if err := b.buildInstanceUsecase(); err != nil {
+		return nil, err
+	}
+	// адаптер для вызова обработчиков шагов
+	if err := b.buildStepHandlerAdapter(); err != nil {
 		return nil, err
 	}
 	// publisher для kafka
@@ -153,6 +159,7 @@ func (b *Builder) buildRunner() error {
 		repo.NewStepRepo(b.db),
 		db.NewTransactor(b.db),
 		b.sagasCache,
+		b.stepHandlerAdapter,
 		b.publisher,
 	)
 	return nil
@@ -164,6 +171,15 @@ func (b *Builder) buildServer() error {
 	pb.RegisterSagaflowServiceServer(server, sagaflowServer)
 	reflection.Register(server)
 	b.server = server
+	return nil
+}
+
+func (b *Builder) buildStepHandlerAdapter() error {
+	adapter, err := step_handler.NewAdapter(b.cfg.Handlers)
+	if err != nil {
+		return fmt.Errorf("create step handler adapter: %w", err)
+	}
+	b.stepHandlerAdapter = adapter
 	return nil
 }
 

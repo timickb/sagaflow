@@ -22,4 +22,6 @@ const (
 	InstanceFailReasonPayloadMarshaling InstanceFailReason = "PAYLOAD_MARSHALING"
 	// InstanceFailReasonBuildStepInputData - не удалось найти нужные данные для определенного шага в контексте
 	InstanceFailReasonBuildStepInputData InstanceFailReason = "BUILD_STEP_INPUT_DATA"
+	// InstanceFailReasonApplyStepOutputData - не удалось записать выходные данные шага в контекст сценария
+	InstanceFailReasonApplyStepOutputData InstanceFailReason = "APPLY_STEP_OUTPUT_DATA"
 )

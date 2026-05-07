@@ -9,7 +9,6 @@ import (
 	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/lib/broker"
 	"github.com/timickb/sagaflow/lib/utils"
-	"github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 )
 
 func (r *Runner) callHandler(
@@ -18,6 +17,7 @@ func (r *Runner) callHandler(
 	stepDef *domain.DefinitionStep,
 	step *domain.StepView,
 ) {
+	// 1. Найти дефиницию обработчика
 	if stepDef.Handler == nil {
 		log.Error().Msgf(
 			"Unexpected nil handler in saga %s:%d for step %s",
@@ -27,28 +27,21 @@ func (r *Runner) callHandler(
 		return
 	}
 
+	// 2. Установить WAITING_EVENT экземпляру
 	if err := r.instanceRepo.SetExecutionState(ctx, instance.SagaId, domain.InstanceExecutionStateWaitingEvent); err != nil {
 		log.Error().Err(err).Msgf("Unable to set WAITING_EVENT state for instance %v", instance.SagaId)
 		return
 	}
 
-	req := &sagaflow.HandleRequest{
-		Meta: &sagaflow.StepExecutionMeta{
-			SagaId:         instance.SagaId.String(),
-			StepId:         stepDef.Id,
-			Action:         stepDef.Handler.Method,
-			Attempt:        int32(step.Attempt + 1),
-			IdempotencyKey: "", // todo
-		},
-		Payload: step.InputData.GetRaw(),
-	}
-	conn, found := r.handlers.GetHandlerConnection(stepDef.Handler.Service)
-	if !found || conn == nil {
-		log.Error().Msgf("No handler for step %s in saga %s, abort", stepDef.Id, instance.SagaName)
-		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonHandlerNotFound, nil)
-		return
-	}
-	resp, err := sagaflow.NewStepHandlerServiceClient(conn).Handle(ctx, req)
+	// 3. Вызвать обработчик
+	callResult, err := r.stepHandler.Call(ctx, &domain.CallHandlerRequest{
+		Service:        stepDef.Handler.Service,
+		Method:         stepDef.Handler.Method,
+		SagaInstanceId: instance.SagaId,
+		StepId:         stepDef.Id,
+		Attempt:        step.Attempt + 1,
+		InputData:      step.InputData,
+	})
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to call handler for step %s in saga %s", stepDef.Id, instance.SagaName)
 		pubErr := r.publisher.Publish(ctx, buildCallFailedEvent(instance.SagaId, stepDef.Id, err.Error()))
@@ -61,18 +54,18 @@ func (r *Runner) callHandler(
 		}
 		return
 	}
-	if !resp.Success {
-		// синхронный ответ с ошибкой не может быть retriable
-		// TODO: не всегда!
-		errText := "error"
-		if resp.Error != nil {
-			errText = *resp.Error
-		}
+	switch callResult.Status {
+	case domain.CallHandlerResultUnprocessable:
 		log.Error().Msgf(
 			"Failed to handle step %s in saga %s: handler responsed %s, abort",
-			stepDef.Id, instance.SagaName, errText,
+			stepDef.Id, instance.SagaName, callResult.ErrorData,
 		)
 		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonInvalidHandler, nil)
+	case domain.CallHandlerResultHandlerNotFound:
+		log.Error().Msgf("No handler for step %s in saga %s, abort", stepDef.Id, instance.SagaName)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonHandlerNotFound, nil)
+	case domain.CallHandlerResultSuccess:
+		log.Info().Msgf("Successfully invoked handler for step %s in saga %s", stepDef.Id, instance.SagaName)
 	}
 }
 

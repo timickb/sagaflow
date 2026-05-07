@@ -10,7 +10,8 @@ import (
 	"github.com/timickb/sagaflow/lib/utils"
 )
 
-// handleCommittedTransition Обработать переход on.committed для шагов типа action/compensate
+// handleCommittedTransition Обработать переход on.committed для шагов типа action/compensate/reconcile
+// или по on.matched для шагов типа verify
 func (r *Runner) handleCommittedTransition(
 	event *broker.SagaStepResultEvent,
 	sagaDef *domain.SagaDefinition,
@@ -25,7 +26,7 @@ func (r *Runner) handleCommittedTransition(
 	}
 	nextStepName, ok := currentStepDef.Transitions[neededOutcome]
 	if !ok {
-		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name, now), nil
+		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name), nil
 	}
 	nextStepDef := utils.Find(sagaDef.Steps, func(s *domain.DefinitionStep) bool {
 		return s.Id == nextStepName
@@ -35,11 +36,18 @@ func (r *Runner) handleCommittedTransition(
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonStepNotFound), nil
 	}
 
+	// Применение выходных данных текущего шага к контексту сценария
+	newRuntimeContext, err := mergeStepOutputToContext(instance.RuntimeContext, currentStepDef, event)
+	if err != nil {
+		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonApplyStepOutputData), nil
+	}
+
 	transitionDto := &domain.InstanceTransitionDto{
 		Id:             instance.SagaId,
 		NextStepName:   nextStepName,
 		ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
 		Status:         nextStepDef.ToInstanceStatus(instance.Status),
+		RuntimeContext: newRuntimeContext,
 	}
 	if nextStepDef.Delay != nil {
 		transitionDto.NextExecutionAt = utils.Ptr(now.Add(*nextStepDef.Delay))
@@ -59,6 +67,8 @@ func (r *Runner) handleCommittedTransition(
 		}
 		transitionDto.RuntimeContext = newContext
 	}
+
+	// Сбор входных данных для следующего шага
 	inputData, err := domain.NewStepInputContext(
 		nextStepDef.Inputs,
 		instance.InitialContext,
@@ -71,6 +81,7 @@ func (r *Runner) handleCommittedTransition(
 		)
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonBuildStepInputData), nil
 	}
+
 	return &eventHandleResult{
 		InstanceTransitionDto: transitionDto,
 		StepCreateDto: &domain.StepCreateDto{

@@ -1,8 +1,6 @@
 package worker
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/lib/utils"
@@ -24,7 +22,7 @@ func NewEventHandleFailedResult(instanceId uuid.UUID, reason domain.InstanceFail
 	}
 }
 
-func NewEventHandleNoTerminalStateResult(instanceId uuid.UUID, currentStepName string, now time.Time) *eventHandleResult {
+func NewEventHandleNoTerminalStateResult(instanceId uuid.UUID, currentStepName string) *eventHandleResult {
 	return &eventHandleResult{
 		InstanceTransitionDto: &domain.InstanceTransitionDto{
 			Id:           instanceId,

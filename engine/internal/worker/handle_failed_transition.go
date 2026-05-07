@@ -10,7 +10,7 @@ import (
 	"github.com/timickb/sagaflow/lib/utils"
 )
 
-// handleFailedTransition Обработать переход on.failed для шагов типа action/compensate
+// handleFailedTransition Обработать переход on.failed для шагов типа action/compensate/verify/reconcile
 func (r *Runner) handleFailedTransition(
 	event *broker.SagaStepResultEvent,
 	sagaDef *domain.SagaDefinition,
@@ -57,7 +57,7 @@ func (r *Runner) handleFailedTransition(
 	nextStepName, ok := currentStepDef.Transitions[domain.OutcomeFailed]
 	if !ok {
 		// Перехода по failed нет -> завершить инстанс со статусом FAIL
-		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name, now), nil
+		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name), nil
 	}
 	nextStepDef := utils.Find(sagaDef.Steps, func(s *domain.DefinitionStep) bool {
 		return s.Id == nextStepName
@@ -67,6 +67,7 @@ func (r *Runner) handleFailedTransition(
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonStepNotFound), nil
 	}
 
+	// Сбор входных данных для следующего шага
 	inputData, err := domain.NewStepInputContext(
 		nextStepDef.Inputs,
 		instance.InitialContext,
@@ -80,6 +81,12 @@ func (r *Runner) handleFailedTransition(
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonBuildStepInputData), nil
 	}
 
+	// Применение выходных данных текущего шага к контексту сценария
+	newRuntimeContext, err := mergeStepOutputToContext(instance.RuntimeContext, currentStepDef, event)
+	if err != nil {
+		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonApplyStepOutputData), nil
+	}
+
 	// если следующий шаг терминальный - сразу ставим ему COMMITTED статус
 	var newStepStatus *domain.StepStatus
 	if nextStepDef.Kind == domain.StepKindTerminal {
@@ -90,6 +97,7 @@ func (r *Runner) handleFailedTransition(
 		NextStepName:   nextStepDef.Id,
 		Status:         nextStepDef.ToInstanceStatus(instance.Status),
 		ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
+		RuntimeContext: newRuntimeContext,
 	}
 	if nextStepDef.Delay != nil {
 		instanceTransitionDto.NextExecutionAt = utils.Ptr(now.Add(*nextStepDef.Delay))

@@ -75,6 +75,9 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 	if step.Id == "" {
 		return nil, errors.New("step id could not be empty")
 	}
+	if !utils.IsStrNilOrEmpty(step.Compensate) {
+		parsedStep.CompensateStepId = *step.Compensate
+	}
 
 	// Таймаут обязателен для любого шага кроме терминального
 	if step.Kind != domain.StepKindTerminal {
@@ -173,6 +176,10 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 		if step.Kind == domain.StepKindReconcile && step.Recovery != nil {
 			if step.Recovery.MaxCycles <= 0 {
 				return nil, errors.New("recovery policy requires at least one cycle")
+			}
+			parsedStep.Recovery = &domain.RecoveryPolicy{
+				MaxCycles:  step.Recovery.MaxCycles,
+				OnExceeded: step.Recovery.OnExceeded,
 			}
 		}
 		parsedStep.Handler = &domain.Handler{

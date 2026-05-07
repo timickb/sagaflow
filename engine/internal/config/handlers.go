@@ -1,15 +1,10 @@
 package config
 
 import (
-	"crypto/tls"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // HandlersConfig - конфигурация подключений к сервисам-обработчикам шагов саг
@@ -19,7 +14,7 @@ type HandlersConfig struct {
 	TLS            bool     `yaml:"tls"`
 	Endpoints      []string `yaml:"endpoints"`
 
-	connections map[string]*grpc.ClientConn
+	parsedEndpoints map[string]string
 }
 
 func (c *HandlersConfig) Validate() error {
@@ -35,16 +30,16 @@ func (c *HandlersConfig) Validate() error {
 	return nil
 }
 
-func (c *HandlersConfig) GetHandlerConnection(serviceName string) (*grpc.ClientConn, bool) {
-	conn, ok := c.connections[serviceName]
-	if !ok {
-		return nil, false
-	}
-	return conn, true
+func (c *HandlersConfig) GetEndpoints() map[string]string {
+	return c.parsedEndpoints
+}
+
+func (c *HandlersConfig) GetTLS() bool {
+	return c.TLS
 }
 
 func (c *HandlersConfig) parseEndpoints() error {
-	c.connections = make(map[string]*grpc.ClientConn)
+	c.parsedEndpoints = make(map[string]string)
 	for _, endpoint := range c.Endpoints {
 		parts := strings.Split(endpoint, ":")
 		if len(parts) != 3 {
@@ -53,23 +48,7 @@ func (c *HandlersConfig) parseEndpoints() error {
 		if _, err := strconv.Atoi(parts[2]); err != nil {
 			return fmt.Errorf("invalid port in handler: %s", endpoint)
 		}
-		conn, err := c.createConnection(fmt.Sprintf("%s:%s", parts[1], parts[2]))
-		if err != nil {
-			return fmt.Errorf("create connection for endpoint %s: %w", endpoint, err)
-		}
-		c.connections[parts[0]] = conn
+		c.parsedEndpoints[parts[0]] = fmt.Sprintf("%s:%s", parts[1], parts[2])
 	}
 	return nil
-}
-
-func (c *HandlersConfig) createConnection(endpoint string) (*grpc.ClientConn, error) {
-	cred := insecure.NewCredentials()
-	if c.TLS {
-		cred = credentials.NewTLS(&tls.Config{})
-	}
-	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(cred))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create grpc connection: %w", err)
-	}
-	return conn, nil
 }

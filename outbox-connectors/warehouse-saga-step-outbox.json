@@ -16,7 +16,7 @@
   "publication.autocreate.mode": "disabled",
 
   "schema.include.list": "public",
-  "table.include.list": "public.outbox_events",
+  "table.include.list": "public.saga_outbox_events",
 
   "tombstones.on.delete": "false",
   "heartbeat.interval.ms": "10000",
@@ -24,11 +24,11 @@
 
   "transforms": "outbox",
   "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
-  "transforms.outbox.route.by.field": "aggregatetype",
+  "transforms.outbox.route.by.field": "aggregate_type",
   "transforms.outbox.route.topic.replacement": "saga.step.result",
 
   "transforms.outbox.table.field.event.id": "id",
-  "transforms.outbox.table.field.event.key": "aggregateid",
+  "transforms.outbox.table.field.event.key": "aggregate_id",
   "transforms.outbox.table.field.event.payload": "payload",
   "transforms.outbox.table.expand.json.payload": "true"
 }
