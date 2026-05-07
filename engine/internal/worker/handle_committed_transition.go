@@ -19,7 +19,11 @@ func (r *Runner) handleCommittedTransition(
 	currentStep *domain.StepView,
 ) (result *eventHandleResult, err error) {
 	now := time.Now()
-	nextStepName, ok := currentStepDef.Transitions[domain.OutcomeCommitted]
+	neededOutcome := domain.OutcomeCommitted
+	if currentStepDef.Kind == domain.StepKindVerify {
+		neededOutcome = domain.OutcomeMatched
+	}
+	nextStepName, ok := currentStepDef.Transitions[neededOutcome]
 	if !ok {
 		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name, now), nil
 	}
@@ -36,6 +40,9 @@ func (r *Runner) handleCommittedTransition(
 		NextStepName:   nextStepName,
 		ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
 		Status:         nextStepDef.ToInstanceStatus(instance.Status),
+	}
+	if nextStepDef.Delay != nil {
+		transitionDto.NextExecutionAt = utils.Ptr(now.Add(*nextStepDef.Delay))
 	}
 	if len(event.Result) > 0 {
 		var newContext domain.InstanceContext

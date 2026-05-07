@@ -11,7 +11,7 @@ import (
 	"github.com/timickb/sagaflow/engine/internal/repo/dbstruct"
 	"github.com/timickb/sagaflow/lib/db"
 	"github.com/timickb/sagaflow/lib/utils"
-	"gorm.io/gorm/clause"
+	"gorm.io/gorm"
 )
 
 type instanceRepo struct {
@@ -125,40 +125,29 @@ func (r *instanceRepo) Terminate(ctx context.Context, id uuid.UUID, dto *domain.
 }
 
 // GetForEvent - получить конкретный экземпляр с блокировкой
-func (r *instanceRepo) GetForEvent(
-	ctx context.Context, id uuid.UUID, lockExpire time.Duration, workerId string,
-) (*domain.InstanceView, error) {
-	now := time.Now()
-	lockedTill := now.Add(lockExpire)
+func (r *instanceRepo) GetForEvent(ctx context.Context, id uuid.UUID) (*domain.InstanceView, error) {
 	suitableStatuses := []domain.InstanceStatus{
 		domain.InstanceStatusPending,
 		domain.InstanceStatusRunning,
 		domain.InstanceStatusCompensating,
 		domain.InstanceStatusVerifying,
 	}
-
 	var instance dbstruct.DBSagaInstance
-
 	query := r.db.WithTxSupport(ctx).
-		Model(&instance).
-		Clauses(clause.Returning{}).
+		//Clauses(clause.Locking{
+		//	Strength: "UPDATE",
+		//	Options:  "SKIP LOCKED",
+		//}).
 		Where("saga_id = ?", id).
-		Where("next_execution_at <= now()").
-		Where("locked_till IS NULL OR locked_till < now()").
-		Where("status IN (?)", suitableStatuses).
+		Where("status IN ?", suitableStatuses).
 		Where("execution_state = ?", domain.InstanceExecutionStateWaitingEvent).
-		Updates(map[string]interface{}{
-			"locked_till": lockedTill,
-			"locked_by":   workerId,
-			"updated_at":  now,
-		})
+		First(&instance)
 	if query.Error != nil {
+		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("get db instance failed: %w", query.Error)
 	}
-	if query.RowsAffected == 0 {
-		return nil, fmt.Errorf("get db instance failed: instance %v not found", id)
-	}
-
 	return instance.ToDomain()
 }
 

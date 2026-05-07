@@ -1,17 +1,18 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Таблица для событий, фиксируемых паттерном transactional outbox
-create table if not exists outbox_events
+-- Таблица для событий оркестратора, фиксируемых паттерном transactional outbox
+CREATE TABLE IF NOT EXISTS saga_outbox_events
 (
-    id            uuid primary key,
-    aggregatetype text        not null,
-    aggregateid   text        not null,
-    type          text        not null,
-    payload       jsonb not null,
-    created_at    timestamptz not null default now()
+    id             UUID PRIMARY KEY,
+    aggregate_type TEXT        NOT NULL,
+    aggregate_id   TEXT        NOT NULL,
+    event_type     TEXT        NOT NULL,
+    payload        JSONB       NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-create index if not exists idx_outbox_events_created_at on outbox_events (created_at);
+CREATE INDEX IF NOT EXISTS idx_saga_outbox_events_created_at
+    ON saga_outbox_events (created_at);
 
 DO $$
     BEGIN
@@ -32,4 +33,4 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT ON TABLES TO debezium;
 
 DROP PUBLICATION IF EXISTS warehouse_outbox_pub;
-CREATE PUBLICATION warehouse_outbox_pub FOR TABLE public.outbox_events;
+CREATE PUBLICATION warehouse_outbox_pub FOR TABLE public.saga_outbox_events;

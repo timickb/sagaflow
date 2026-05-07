@@ -13,8 +13,24 @@ import (
 
 var sqlParamRegexp = regexp.MustCompile(`\$\{(input|runtime)\.([^}]+)}`)
 
+type SQLDialect string
+
+const (
+	SQLDialectPostgres   SQLDialect = "postgres"
+	SQLDialectClickHouse SQLDialect = "clickhouse"
+	SQLDialectMySQL      SQLDialect = "mysql"
+)
+
 type SQLSource struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect SQLDialect
+}
+
+func NewSQLSource(db *sql.DB, dialect SQLDialect) *SQLSource {
+	return &SQLSource{
+		db:      db,
+		dialect: dialect,
+	}
 }
 
 func (s *SQLSource) Verify(ctx context.Context, req *domain.VerificationRequest) (*domain.VerificationResult, error) {
@@ -48,13 +64,13 @@ func (s *SQLSource) buildQuery(req *domain.VerificationRequest) (string, []any, 
 
 	query := sqlParamRegexp.ReplaceAllStringFunc(req.Query, func(match string) string {
 		if buildErr != nil {
-			return "?"
+			return s.placeholder(len(args) + 1)
 		}
 
 		parts := sqlParamRegexp.FindStringSubmatch(match)
 		if len(parts) != 3 {
 			buildErr = fmt.Errorf("invalid verification query parameter %q", match)
-			return "?"
+			return s.placeholder(len(args) + 1)
 		}
 
 		source := parts[1]
@@ -63,11 +79,12 @@ func (s *SQLSource) buildQuery(req *domain.VerificationRequest) (string, []any, 
 		value, err := findVerificationParam(req, source, path)
 		if err != nil {
 			buildErr = err
-			return "?"
+			return s.placeholder(len(args) + 1)
 		}
 
 		args = append(args, value)
-		return "?"
+
+		return s.placeholder(len(args))
 	})
 	if buildErr != nil {
 		return "", nil, buildErr
@@ -78,6 +95,17 @@ func (s *SQLSource) buildQuery(req *domain.VerificationRequest) (string, []any, 
 	}
 
 	return query, args, nil
+}
+
+func (s *SQLSource) placeholder(argNumber int) string {
+	switch s.dialect {
+	case SQLDialectPostgres:
+		return fmt.Sprintf("$%d", argNumber)
+	case SQLDialectClickHouse, SQLDialectMySQL:
+		return "?"
+	default:
+		return "?"
+	}
 }
 
 func compareScalar(actual any, expected any) bool {

@@ -24,9 +24,10 @@ type DefinitionStep struct {
 	Inputs  []StepInputParam
 	Outputs []StepOutputParam
 
-	Retry   *RetryPolicy
-	Timeout time.Duration
-	Delay   *time.Duration
+	Retry    *RetryPolicy
+	Recovery *RecoveryPolicy
+	Timeout  time.Duration
+	Delay    *time.Duration
 
 	CompensateStepId string
 
@@ -53,4 +54,9 @@ type RetryPolicy struct {
 	MaxAttempts int
 	Backoff     RetryBackoffType
 	Delay       time.Duration
+}
+
+type RecoveryPolicy struct {
+	MaxCycles  int
+	OnExceeded string
 }

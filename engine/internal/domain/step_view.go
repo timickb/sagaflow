@@ -19,7 +19,9 @@ type StepView struct {
 	// EffectState - статус фиксации результата обработчика шага
 	EffectState *StepEffectState
 	// Attempt - номер попытки выполнения
-	Attempt          int
+	Attempt int
+	// ReconcileCycles - кол-во использованных циклов сверки
+	ReconcileCycles  int
 	WorkerInstanceId *string
 
 	// InputData - какие данные пришли на вход в обработчик

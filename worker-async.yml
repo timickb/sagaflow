@@ -1,6 +1,6 @@
 asyncapi: 3.0.0
 info:
-  title: SagaFlow Coordination Async Protocol
+  title: Асинхронный контракт фиксации результата локальной транзакции обработчиком шага
   version: 1.0.0
 
 servers:

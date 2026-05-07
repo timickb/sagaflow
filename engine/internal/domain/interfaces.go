@@ -57,12 +57,7 @@ type InstanceRepository interface {
 		lockExpire time.Duration,
 		workerId string,
 	) ([]*InstanceView, error)
-	GetForEvent(
-		ctx context.Context,
-		id uuid.UUID,
-		lockExpire time.Duration,
-		workerId string,
-	) (*InstanceView, error)
+	GetForEvent(ctx context.Context, id uuid.UUID) (*InstanceView, error)
 	MakeTransition(ctx context.Context, dto *InstanceTransitionDto) error
 	RemoveLock(ctx context.Context, id uuid.UUID) error
 	Create(ctx context.Context, dto *InstanceStartDto) (uuid.UUID, error)

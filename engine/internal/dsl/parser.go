@@ -170,6 +170,11 @@ func parseStep(step RawStep) (*domain.DefinitionStep, error) {
 		if step.Result != nil {
 			return nil, errors.New("unexpected result for action/reconcile step")
 		}
+		if step.Kind == domain.StepKindReconcile && step.Recovery != nil {
+			if step.Recovery.MaxCycles <= 0 {
+				return nil, errors.New("recovery policy requires at least one cycle")
+			}
+		}
 		parsedStep.Handler = &domain.Handler{
 			Service: step.Handler.Service,
 			Method:  step.Handler.Method,

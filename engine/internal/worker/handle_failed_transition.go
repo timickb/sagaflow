@@ -85,13 +85,17 @@ func (r *Runner) handleFailedTransition(
 	if nextStepDef.Kind == domain.StepKindTerminal {
 		newStepStatus = utils.Ptr(domain.StepStatusCommitted)
 	}
+	instanceTransitionDto := &domain.InstanceTransitionDto{
+		Id:             instance.SagaId,
+		NextStepName:   nextStepDef.Id,
+		Status:         nextStepDef.ToInstanceStatus(instance.Status),
+		ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
+	}
+	if nextStepDef.Delay != nil {
+		instanceTransitionDto.NextExecutionAt = utils.Ptr(now.Add(*nextStepDef.Delay))
+	}
 	return &eventHandleResult{
-		InstanceTransitionDto: &domain.InstanceTransitionDto{
-			Id:             instance.SagaId,
-			NextStepName:   nextStepDef.Id,
-			Status:         nextStepDef.ToInstanceStatus(instance.Status),
-			ExecutionState: utils.Ptr(domain.InstanceExecutionStateRunnable),
-		},
+		InstanceTransitionDto: instanceTransitionDto,
 		StepCreateDto: &domain.StepCreateDto{
 			InstanceId: instance.SagaId,
 			StepName:   nextStepDef.Id,

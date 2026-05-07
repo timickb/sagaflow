@@ -103,50 +103,42 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 		return
 	}
 
-	switch instance.Status {
-	case domain.InstanceStatusPending, domain.InstanceStatusRunning, domain.InstanceStatusCompensating:
-		// 1. Должен был задекларирован шаг, сохраненный в current_step_name
-		if utils.IsStrNilOrEmpty(instance.CurrentStepName) {
-			log.Error().Msgf("Instance %s has unexpected empty current_step_name", instance.SagaId)
-			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
-			return
-		}
-		pendingStepDef := utils.Find(sagaDef.Steps, func(step *domain.DefinitionStep) bool {
-			return step.Id == *instance.CurrentStepName
-		})
-		if pendingStepDef == nil {
-			log.Error().Msgf(
-				"Instance %s attempts to call undeclared step %s",
-				instance.SagaId, *instance.CurrentStepName,
-			)
-			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
-			return
-		}
-		// 2. Он должен быть сохранен в saga_steps
-		pendingStep, exists, err := r.stepRepo.GetByInstanceAndName(ctx, instance.SagaId, *instance.CurrentStepName)
-		if err != nil {
-			log.Error().Err(err).Msgf(
-				"Failed to fetch pending step from db: instance=%v, step=%s",
-				instance.SagaId, *instance.CurrentStepName,
-			)
-			return
-		}
-		if !exists {
-			log.Error().Msgf(
-				"Instance %s attempts to call declared step %s, but it wasn't created",
-				instance.SagaId, *instance.CurrentStepName,
-			)
-			r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
-			return
-		}
-		// 3. Выполнение очередного шага
-		r.executeStep(ctx, instance, pendingStepDef, pendingStep)
-	case domain.InstanceStatusVerifying:
-		// todo
-	default:
-		log.Error().Msgf("Unexpected instance %v status = %v", instance.SagaId, instance.Status)
+	// 1. Должен был задекларирован шаг, сохраненный в current_step_name
+	if utils.IsStrNilOrEmpty(instance.CurrentStepName) {
+		log.Error().Msgf("Instance %s has unexpected empty current_step_name", instance.SagaId)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
 		return
 	}
+	pendingStepDef := utils.Find(sagaDef.Steps, func(step *domain.DefinitionStep) bool {
+		return step.Id == *instance.CurrentStepName
+	})
+	if pendingStepDef == nil {
+		log.Error().Msgf(
+			"Instance %s attempts to call undeclared step %s",
+			instance.SagaId, *instance.CurrentStepName,
+		)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
+		return
+	}
+	// 2. Он должен быть сохранен в saga_steps
+	pendingStep, exists, err := r.stepRepo.GetByInstanceAndName(ctx, instance.SagaId, *instance.CurrentStepName)
+	if err != nil {
+		log.Error().Err(err).Msgf(
+			"Failed to fetch pending step from db: instance=%v, step=%s",
+			instance.SagaId, *instance.CurrentStepName,
+		)
+		return
+	}
+	if !exists {
+		log.Error().Msgf(
+			"Instance %s attempts to call declared step %s, but it wasn't created",
+			instance.SagaId, *instance.CurrentStepName,
+		)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
+		return
+	}
+	// 3. Выполнение очередного шага
+	r.executeStep(ctx, instance, pendingStepDef, pendingStep)
 
 	log.Info().Msgf("Finish instance %v step handling", instance.SagaId)
 }

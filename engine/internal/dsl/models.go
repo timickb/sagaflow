@@ -32,6 +32,7 @@ type RawStep struct {
 	Handler    *RawHandler        `yaml:"handler,omitempty"`
 	Verifier   *RawVerifier       `yaml:"verifier,omitempty"`
 	Retry      *RawRetryPolicy    `yaml:"retry,omitempty"`
+	Recovery   *RawRecoveryPolicy `yaml:"recovery,omitempty"`
 	Input      map[string]string  `yaml:"input,omitempty"`
 	Output     map[string]string  `yaml:"output,omitempty"`
 	Timeout    string             `yaml:"timeout,omitempty"`
@@ -62,4 +63,9 @@ type RawRetryPolicy struct {
 	MaxAttempts int                     `yaml:"max_attempts"`
 	Backoff     domain.RetryBackoffType `yaml:"backoff,omitempty"`
 	Delay       string                  `yaml:"delay,omitempty"`
+}
+
+type RawRecoveryPolicy struct {
+	MaxCycles  int    `yaml:"max_cycles"`
+	OnExceeded string `yaml:"on_exceeded"`
 }

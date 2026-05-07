@@ -42,11 +42,15 @@ api:
 
 verifiers:
   data_sources:
-    payments_oltp:
+    warehouse_postgres:
       type: postgres
       timeout: 5s
-      dsn: jdbc:postgresql://localhost:5432/payments
-    payments_olap:
+      dsn: postgres://postgres:postgres@localhost:5995/warehouse?sslmode=disable
+    payments_postgres:
+      type: postgres
+      timeout: 5s
+      dsn: postgres://postgres:postgres@localhost:5993/payments?sslmode=disable
+    clickhouse:
       type: clickhouse
       timeout: 5s
-      dsn: jdbc:postgresql://localhost:5432/payments
+      dsn: clickhouse://default:default@localhost:9000/default

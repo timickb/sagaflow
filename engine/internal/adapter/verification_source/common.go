@@ -15,14 +15,14 @@ func NewVerificationSource(params *domain.VerificationSourceParams) (domain.Veri
 		if err != nil {
 			return nil, err
 		}
-		return &SQLSource{db: db}, nil
+		return &SQLSource{db: db, dialect: SQLDialectPostgres}, nil
 
 	case domain.VerificationSourceTypeClickHouse:
 		db, err := sql.Open("clickhouse", params.DSN)
 		if err != nil {
 			return nil, err
 		}
-		return &SQLSource{db: db}, nil
+		return &SQLSource{db: db, dialect: SQLDialectClickHouse}, nil
 
 	case domain.VerificationSourceTypeRest:
 		return &RESTSource{

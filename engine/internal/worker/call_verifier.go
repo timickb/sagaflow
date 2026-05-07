@@ -56,7 +56,7 @@ func (r *Runner) callVerifier(
 	}
 	result, err := source.Verify(ctx, &domain.VerificationRequest{
 		Query:          stepDef.Verifier.Query,
-		Expected:       stepDef.Verifier.Expect,
+		Expected:       stepDef.Verifier.Expect.Equals,
 		InitialContext: instance.InitialContext,
 		RuntimeContext: instance.RuntimeContext,
 		Timeout:        stepDef.Timeout,

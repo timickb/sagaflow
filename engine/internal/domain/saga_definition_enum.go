@@ -36,7 +36,7 @@ const (
 	// OutcomeTimeout - выполнение шага не уложилось в заданный таймаут
 	OutcomeTimeout StepOutcome = "timeout"
 	// OutcomeMatched - проверка успешно пройдена (для verify шагов)
-	OutcomeMatched StepOutcome = "passed"
+	OutcomeMatched StepOutcome = "matched"
 	// OutcomeUnmatched - обнаружено расхождение в данных (для verify шагов)
 	OutcomeUnmatched StepOutcome = "unmatched"
 

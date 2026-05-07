@@ -37,10 +37,11 @@ steps:
   - id: ReserveInventory
     kind: action
     description: Зарезервировать товар на складе
-    timeout: 5s
+    delay: 10s
+    timeout: 10s
     compensate: ReleaseInventory
     retry:
-      max_attempts: 5
+      max_attempts: 8
       delay: 1s
       backoff: exponential
     handler:
@@ -61,6 +62,10 @@ steps:
     kind: action
     description: Совершить платеж, используя заранее привязанную карту пользователя
     timeout: 10s
+    retry:
+      max_attempts: 5
+      delay: 1s
+      backoff: exponential
     handler:
       service: payments
       method: Capture
@@ -78,11 +83,11 @@ steps:
   - id: ReleaseInventory
     kind: compensate
     description: Снять бронь с товаров на складе
-    timeout: 5s
+    timeout: 10s
     retry:
       max_attempts: 5
-      delay: 2s
-      backoff: fixed
+      delay: 1s
+      backoff: exponential
     handler:
       service: warehouse
       method: Release
@@ -94,46 +99,37 @@ steps:
       failed: Fail
       timeout: Fail
 
-  - id: VerifyReservationOLTP
-    kind: verify
-    timeout: 5s
-    verifier:
-      type: sql
-      datasource: warehouse_postgres
-      query: |
-        SELECT count(*)
-        FROM reservations
-        WHERE order_id = ${input.order_id}
-          AND status = 'ACTIVE'
-      expect:
-        equals: 1
-    on:
-      passed: VerifyOrderOLTP
-      failed: ReleaseInventory
-      timeout: Fail
-
   - id: VerifyOrderOLTP
     kind: verify
-    timeout: 5s
+    timeout: 10s
+    retry:
+      max_attempts: 5
+      delay: 1s
+      backoff: exponential
     verifier:
       type: sql
       datasource: payments_postgres
       query: |
         SELECT count(*)
-        FROM reservations
-        WHERE order_id = ${input.order_id}
-          AND status = 'ACTIVE'
+        FROM orders
+        WHERE id = ${input.order_id}
+          AND status = 'PAID'
       expect:
         equals: 1
     on:
-      passed: VerifyAnalyticsMaterialization
+      matched: VerifyAnalyticsMaterialization
+      unmatched: ReleaseInventory
       failed: ReleaseInventory
-      timeout: Fail
+      timeout: ReleaseInventory
 
   - id: VerifyAnalyticsMaterialization
     kind: verify
     delay: 10s
-    timeout: 5s
+    timeout: 10s
+    retry:
+      max_attempts: 5
+      delay: 1s
+      backoff: exponential
     verifier:
       type: sql
       datasource: clickhouse
@@ -145,18 +141,22 @@ steps:
       expect:
         equals: 1
     on:
-      passed: Success
-      failed: ReconcileAnalyticsMaterialization
+      matched: Success
+      unmatched: ReconcileAnalyticsMaterialization
       timeout: ReconcileAnalyticsMaterialization
+      failed: ReconcileAnalyticsMaterialization
 
   - id: ReconcileAnalyticsMaterialization
     kind: reconcile
     description: Принудительно пересобрать аналитическую проекцию заказа
     timeout: 10s
     retry:
-      max_attempts: 3
-      delay: 5s
-      backoff: fixed
+      max_attempts: 5
+      delay: 1s
+      backoff: exponential
+    recovery:
+      max_cycles: 3
+      on_exceeded: Inconsistent
     handler:
       service: analytics
       method: RebuildOrderProjection
@@ -171,15 +171,12 @@ steps:
   - id: Success
     kind: terminal
     result: COMPLETED
-
   - id: Rollback
     kind: terminal
     result: COMPENSATED
-
   - id: Fail
     kind: terminal
     result: FAILED
-
   - id: Inconsistent
     kind: terminal
     result: INCONSISTENT

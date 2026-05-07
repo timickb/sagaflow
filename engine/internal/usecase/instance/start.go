@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/internal/domain"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (instanceId uuid.UUID, err error) {
+	now := time.Now()
 	sagaDef, sagaFound := u.cache.GetSagaDefinition(domain.SagaDefinitionHeader{
 		Name:    dto.SagaName,
 		Version: dto.SagaVersion,
@@ -38,6 +41,14 @@ func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (inst
 	inputData, err := domain.NewJsonInstanceContextFromAny(inputDataRaw)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("create JsonInstanceContext for input data: %w", err)
+	}
+
+	if startStepDef.Delay != nil {
+		if dto.StartAfter == nil {
+			dto.StartAfter = utils.Ptr(now.Add(*startStepDef.Delay))
+		} else {
+			dto.StartAfter = utils.Ptr(dto.StartAfter.Add(*startStepDef.Delay))
+		}
 	}
 
 	err = u.transactor.Transaction(ctx, func(ctx context.Context) error {

@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // InstanceStartDto - данные для запуска экемпляра саги
 type InstanceStartDto struct {
 	// SagaName - название (= идентификатор) саги
@@ -17,4 +19,7 @@ type InstanceStartDto struct {
 	IdempotencyKey *string
 	// CorrelationId - опциональный ключ контекста запроса
 	CorrelationId *string
+
+	// StartAfter - время отложенного запуска
+	StartAfter *time.Time
 }

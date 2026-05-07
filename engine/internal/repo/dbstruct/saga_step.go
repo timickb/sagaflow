@@ -16,6 +16,7 @@ type DBSagaStep struct {
 	StepOrder        int
 	Status           domain.StepStatus
 	Attempt          int
+	ReconcileCycles  int
 	WorkerInstanceId *string
 
 	InputData  json.RawMessage
@@ -36,14 +37,15 @@ func NewSagaStep(dto *domain.StepCreateDto) *DBSagaStep {
 		status = *dto.Status
 	}
 	return &DBSagaStep{
-		SagaId:     dto.InstanceId,
-		StepName:   dto.StepName,
-		StepOrder:  dto.StepOrder,
-		Status:     status,
-		Attempt:    1,
-		InputData:  dto.InputData.GetRaw(),
-		OutputData: domain.EmptyInstanceContext.GetRaw(),
-		UpdatedAt:  time.Now(),
+		SagaId:          dto.InstanceId,
+		StepName:        dto.StepName,
+		StepOrder:       dto.StepOrder,
+		Status:          status,
+		Attempt:         1,
+		ReconcileCycles: 0,
+		InputData:       dto.InputData.GetRaw(),
+		OutputData:      domain.EmptyInstanceContext.GetRaw(),
+		UpdatedAt:       time.Now(),
 	}
 }
 
@@ -77,6 +79,7 @@ func (s *DBSagaStep) ToDomain() (*domain.StepView, error) {
 		Status:           s.Status,
 		EffectState:      s.EffectState,
 		Attempt:          s.Attempt,
+		ReconcileCycles:  s.ReconcileCycles,
 		WorkerInstanceId: s.WorkerInstanceId,
 		InputData:        inputData,
 		OutputData:       outputData,

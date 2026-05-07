@@ -20,8 +20,8 @@ CREATE TABLE saga_instance
 
     execution_state    TEXT        NOT NULL CHECK (
         execution_state IN (
-                    'RUNNABLE',
-                    'WAITING_EVENT'
+                            'RUNNABLE',
+                            'WAITING_EVENT'
             )
         ),
 
@@ -70,6 +70,7 @@ CREATE TABLE saga_step
         ),
 
     attempt            INTEGER     NOT NULL DEFAULT 0,
+    reconcile_cycles   INTEGER     NOT NULL DEFAULT 0,
 
     worker_instance_id TEXT        NULL,
 

@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	stepResultTopic = "saga.step.result"
+	stepResultTopic    = "saga.step.result"
+	eventAggregateType = "SagaInstance"
+	eventType          = "SagaStepCommitted"
 )
 
 type DBEvent struct {
@@ -30,9 +32,9 @@ func NewEventDtoFromStepResultEvent(event *broker.SagaStepResultEvent) (*DBEvent
 	}
 	return &DBEvent{
 		Id:            uuid.New(),
-		Aggregatetype: stepResultTopic,
-		Aggregateid:   stepResultTopic,
-		Type:          stepResultTopic,
+		Aggregatetype: eventAggregateType,
+		Aggregateid:   event.Ref.SagaId.String(),
+		Type:          eventType,
 		Payload:       eventMarshaled,
 		CreatedAt:     time.Now(),
 	}, nil
