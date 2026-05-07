@@ -26,7 +26,33 @@ func (s *PaymentsService) Capture(
 		captureErr error
 	)
 
-	err := s.transactor.Transaction(ctx, func(ctx context.Context) error {
+	actualOrder, err := s.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if actualOrder == nil || actualOrder.Status != domain.OrderStatusPending {
+		// Записываем REJECTED событие саги в outbox
+		sagaOutboxEvent := &broker.SagaStepResultEvent{
+			Ref: broker.SagaStepRef{
+				SagaId:      sagaInstanceID,
+				StepName:    stepID,
+				ServiceName: serviceName,
+			},
+			Status:     broker.SagaStepStatusRejected,
+			ResolvedAt: func() *time.Time { t := time.Now(); return &t }(),
+			Error: &broker.ErrorInfo{
+				Code:      "UNPROCESSABLE",
+				Message:   "Order doesn't exist or in unexpecetd status",
+				Retriable: false,
+			},
+		}
+		if err = s.outboxRepo.PushSagaStepResultEvent(ctx, sagaOutboxEvent); err != nil {
+			captureErr = fmt.Errorf("push outbox event: %w", err)
+			return nil, captureErr
+		}
+	}
+
+	err = s.transactor.Transaction(ctx, func(ctx context.Context) error {
 		// Обновляем детали заказа
 		details, err := json.Marshal(items)
 		if err != nil {
@@ -34,7 +60,7 @@ func (s *PaymentsService) Capture(
 			return captureErr
 		}
 
-		orderEntity, err := s.orderRepo.UpdateDetails(ctx, orderID, details)
+		orderEntity, err := s.orderRepo.MakePaid(ctx, orderID, details)
 		if err != nil {
 			captureErr = fmt.Errorf("update order details: %w", err)
 			return captureErr

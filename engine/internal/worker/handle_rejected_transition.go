@@ -35,11 +35,11 @@ func (r *Runner) handleRejectedTransition(
 	// Поиск следующего шага для исхода
 	neededOutcome := domain.OutcomeRejected
 	if currentStepDef.Kind == domain.StepKindVerify {
-		neededOutcome = domain.OutcomeCommitted
+		neededOutcome = domain.OutcomeUnmatched
 	}
 	nextStepName, ok := currentStepDef.Transitions[neededOutcome]
 	if !ok {
-		// Перехода нет -> завершить инстанс со статусом FAIL
+		// Перехода нет -> завершить инстанс со статусом INCONSISTENT
 		return NewEventHandleNoTerminalStateResult(instance.SagaId, currentStep.Name), nil
 	}
 	nextStepDef := utils.Find(sagaDef.Steps, func(s *domain.DefinitionStep) bool {

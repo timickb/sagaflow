@@ -144,8 +144,7 @@ func TestHandleRejectedTransition(t *testing.T) {
 		result, err := testRunner.handleRejectedTransition(event, sagaDef, currentStepDef, instance, currentStep)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		// For verify step, rejected uses OutcomeCommitted as needed outcome
-		require.Equal(t, "success_step", result.InstanceTransitionDto.NextStepName)
+		require.Equal(t, "fail_step", result.InstanceTransitionDto.NextStepName)
 	})
 
 	t.Run("no transition for rejected outcome - returns no terminal state", func(t *testing.T) {

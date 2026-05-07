@@ -20,7 +20,7 @@
 
   "tombstones.on.delete": "false",
   "heartbeat.interval.ms": "10000",
-  "snapshot.mode": "initial",
+  "snapshot.mode": "when_needed",
 
   "transforms": "outbox",
   "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",

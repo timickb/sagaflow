@@ -56,9 +56,13 @@ func (r *Runner) callHandler(
 	}
 	switch callResult.Status {
 	case domain.CallHandlerResultUnprocessable:
+		errText := "error"
+		if callResult.ErrorData != nil {
+			errText = *callResult.ErrorData
+		}
 		log.Error().Msgf(
 			"Failed to handle step %s in saga %s: handler responsed %s, abort",
-			stepDef.Id, instance.SagaName, callResult.ErrorData,
+			stepDef.Id, instance.SagaName, errText,
 		)
 		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonInvalidHandler, nil)
 	case domain.CallHandlerResultHandlerNotFound:

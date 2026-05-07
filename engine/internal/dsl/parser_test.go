@@ -346,7 +346,7 @@ func TestValidateAndNormalize(t *testing.T) {
 		require.NotNil(t, def)
 		require.NotNil(t, def.Steps[0].Recovery)
 		require.Equal(t, 5, def.Steps[0].Recovery.MaxCycles)
-		require.Equal(t, "fail_saga", def.Steps[0].Recovery.OnExceeded)
+		require.Equal(t, "terminal", def.Steps[0].Recovery.OnExceeded)
 	})
 }
 

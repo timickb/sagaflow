@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/timickb/sagaflow/engine/internal/domain"
 )
 

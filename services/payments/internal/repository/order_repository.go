@@ -34,13 +34,16 @@ func (r *OrderRepository) Create(ctx context.Context, order *domain.Order) error
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
-func (r *OrderRepository) UpdateDetails(ctx context.Context, id uuid.UUID, details []byte) (*domain.Order, error) {
+func (r *OrderRepository) MakePaid(ctx context.Context, id uuid.UUID, details []byte) (*domain.Order, error) {
 	var order domain.Order
 	tx := r.db.WithContext(ctx).
 		Model(&order).
 		Clauses(clause.Returning{}).
 		Where("id = ?", id).
-		Update("details", details)
+		UpdateColumns(map[string]interface{}{
+			"status":  domain.OrderStatusPaid,
+			"details": details,
+		})
 	if tx.Error != nil {
 		return nil, tx.Error
 	}

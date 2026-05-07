@@ -104,7 +104,7 @@ func buildVerificationCallFailedEvent(instanceId uuid.UUID, stepId string, errTe
 func buildVerificationResultEvent(instanceId uuid.UUID, stepId string, matched bool) *broker.SagaStepResultEvent {
 	status := broker.SagaStepStatusCommitted
 	if !matched {
-		status = broker.SagaStepStatusFailed
+		status = broker.SagaStepStatusRejected
 	}
 	return &broker.SagaStepResultEvent{
 		Ref: broker.SagaStepRef{
