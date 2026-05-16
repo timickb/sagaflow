@@ -160,13 +160,13 @@ steps:
     handler:
       service: analytics
       method: RebuildOrderProjection
-      input:
-        order_id: ${input.order_id}
-      on:
-        committed: VerifyAnalyticsMaterialization
-        rejected: Inconsistent
-        failed: Inconsistent
-        timeout: Inconsistent
+    input:
+      order_id: ${input.order_id}
+    on:
+      committed: VerifyAnalyticsMaterialization
+      rejected: Inconsistent
+      failed: Inconsistent
+      timeout: Inconsistent
 
   - id: Success
     kind: terminal

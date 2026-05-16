@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	sagaflow "github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 	"github.com/timickb/sagaflow/services/analytics/internal/service"
 )
@@ -39,7 +40,20 @@ func (c *StepHandlerController) Handle(ctx context.Context, req *sagaflow.Handle
 }
 
 func (c *StepHandlerController) handleRebuildOrderProjection(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
-	if err := c.svc.RebuildOrderProjection(ctx, req.Payload); err != nil {
+	sagaId, err := uuid.Parse(req.Meta.GetSagaId())
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("invalid saga_id: %v", err)),
+		}, nil
+	}
+
+	meta := service.RebuildOrderProjectionMeta{
+		SagaId:   sagaId,
+		StepName: req.Meta.GetStepId(),
+	}
+
+	if err = c.svc.RebuildOrderProjection(ctx, req.Payload, meta); err != nil {
 		return &sagaflow.HandleResponse{
 			Success: false,
 			Error:   ptrString(fmt.Sprintf("rebuild projection failed: %v", err)),

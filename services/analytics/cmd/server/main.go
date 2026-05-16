@@ -8,8 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/timickb/sagaflow/lib/broker"
 	sagaflow "github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 	"github.com/timickb/sagaflow/services/analytics/internal/clickhouse"
+	"github.com/timickb/sagaflow/services/analytics/internal/client"
 	"github.com/timickb/sagaflow/services/analytics/internal/consumer"
 	"github.com/timickb/sagaflow/services/analytics/internal/controller"
 	"github.com/timickb/sagaflow/services/analytics/internal/service"
@@ -18,7 +20,8 @@ import (
 )
 
 const (
-	grpcServerAddr = ":50053"
+	grpcServerAddr     = ":50053"
+	paymentsServerAddr = ":50054"
 )
 
 func main() {
@@ -37,8 +40,30 @@ func main() {
 	}
 	defer chRepo.Close()
 
+	// PaymentsService gRPC клиент
+	paymentsClient, err := client.NewPaymentsClient(paymentsServerAddr)
+	if err != nil {
+		log.Fatalf("create payments client: %v", err)
+	}
+	defer paymentsClient.Close()
+
+	// Kafka publisher для saga.step.result
+	stepResultWriter, err := broker.NewKafkaStepResultWriter(&broker.KafkaConfig{
+		Brokers:           []string{"localhost:29092"},
+		StepResultTopic:   "saga.step.result",
+		GroupId:           "sagaflow-orchestrator",
+		ClientId:          "sagaflow-orchestrator-1",
+		DialTimeoutRaw:    "5s",
+		ReadTimeoutRaw:    "5s",
+		CommitIntervalRaw: "0",
+	})
+	if err != nil {
+		log.Fatalf("create step result writer: %v", err)
+	}
+	defer stepResultWriter.Close()
+
 	// Инициализация сервиса
-	svc := service.NewAnalyticsService(chRepo)
+	svc := service.NewAnalyticsService(chRepo, paymentsClient, stepResultWriter)
 
 	// Kafka консьюмер
 	kafkaCfg := &consumer.KafkaConsumerConfig{

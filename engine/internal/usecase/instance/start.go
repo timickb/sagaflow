@@ -56,7 +56,7 @@ func (u *Usecase) Start(ctx context.Context, dto *domain.InstanceStartDto) (inst
 		if err != nil {
 			return fmt.Errorf("failed to save instance: %w", err)
 		}
-		_, err = u.stepRepo.Create(ctx, &domain.StepCreateDto{
+		_, err = u.stepRepo.Upsert(ctx, &domain.StepCreateDto{
 			InstanceId: instanceId,
 			StepName:   sagaDef.StartStepId,
 			StepOrder:  1,

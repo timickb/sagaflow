@@ -56,6 +56,37 @@ func (r *instanceRepo) TakeBatch(
 	return utils.MapSliceOnError(instances, (*dbstruct.DBSagaInstance).ToDomain)
 }
 
+// TakeExpiredBatch - получить пачку экземпляров, не дождавшихся вовремя события.
+func (r *instanceRepo) TakeExpiredBatch(
+	ctx context.Context, batchSize int, lockExpire time.Duration, workerId string,
+) ([]*domain.InstanceView, error) {
+	var instances []*dbstruct.DBSagaInstance
+	lockedTill := time.Now().Add(lockExpire)
+	err := r.db.WithTxSupport(ctx).Raw(`
+		WITH batch AS (
+    		SELECT saga_id
+    		FROM saga_instance
+    		WHERE execution_state = 'WAITING_EVENT'
+      			AND event_timeout_at < now()
+      			AND (locked_till IS NULL OR locked_till < now())
+   	 		ORDER BY event_timeout_at, started_at
+    		LIMIT $1
+    		FOR UPDATE SKIP LOCKED
+		)
+		UPDATE saga_instance s
+		SET locked_till = $2, locked_by = $3, updated_at = now()
+		FROM batch
+		WHERE s.saga_id = batch.saga_id
+		RETURNING s.*;`,
+		batchSize, lockedTill, workerId,
+	).
+		Scan(&instances).Error
+	if err != nil {
+		return nil, fmt.Errorf("take expired instances batch: %w", err)
+	}
+	return utils.MapSliceOnError(instances, (*dbstruct.DBSagaInstance).ToDomain)
+}
+
 // RemoveLock - снять блокировку с экземпляра
 func (r *instanceRepo) RemoveLock(ctx context.Context, id uuid.UUID) error {
 	err := r.db.WithTxSupport(ctx).

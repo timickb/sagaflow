@@ -4,11 +4,16 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/timickb/sagaflow/lib/db"
 	"github.com/timickb/sagaflow/lib/outbox"
+	"github.com/timickb/sagaflow/proto/gen/go/payments"
 	sagaflow "github.com/timickb/sagaflow/proto/gen/go/sagaflow"
 	"github.com/timickb/sagaflow/services/payments/internal/controller"
+	grpcserver "github.com/timickb/sagaflow/services/payments/internal/grpcserver"
 	"github.com/timickb/sagaflow/services/payments/internal/payment"
 	"github.com/timickb/sagaflow/services/payments/internal/repository"
 	"github.com/timickb/sagaflow/services/payments/internal/service"
@@ -16,7 +21,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-const grpcServerAddr = ":50052"
+const (
+	stepHandlerServerAddr = ":50052"
+	paymentsServerAddr    = ":50054"
+)
 
 func main() {
 	ctx := context.Background()
@@ -57,8 +65,30 @@ func main() {
 	// Инициализация контроллера
 	ctrl := controller.NewStepHandlerController(svc)
 
-	// Запуск gRPC сервера
-	lis, err := net.Listen("tcp", grpcServerAddr)
+	// Инициализация PaymentsService gRPC сервера
+	paymentsGrpcServer := grpcserver.NewPaymentsServer(orderRepo)
+	paymentsLis, err := net.Listen("tcp", paymentsServerAddr)
+	if err != nil {
+		log.Fatalf("failed to listen for payments server: %v", err)
+	}
+
+	paymentsGrpcServerInstance := grpc.NewServer()
+	payments.RegisterPaymentsServiceServer(paymentsGrpcServerInstance, paymentsGrpcServer)
+
+	// Graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Запуск PaymentsService gRPC сервера
+	go func() {
+		log.Printf("Starting PaymentsService gRPC server on %s", paymentsServerAddr)
+		if err := paymentsGrpcServerInstance.Serve(paymentsLis); err != nil {
+			log.Fatalf("failed to serve payments grpc: %v", err)
+		}
+	}()
+
+	// Запуск StepHandler gRPC сервера
+	lis, err := net.Listen("tcp", stepHandlerServerAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -67,8 +97,15 @@ func main() {
 	sagaflow.RegisterStepHandlerServiceServer(grpcServer, ctrl)
 	reflection.Register(grpcServer) // для grpcurl/grpcui
 
-	log.Printf("Starting gRPC server on %s", grpcServerAddr)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	go func() {
+		log.Printf("Starting StepHandler gRPC server on %s", stepHandlerServerAddr)
+		if err = grpcServer.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	<-sigCh
+	log.Println("Shutting down...")
+	grpcServer.GracefulStop()
+	paymentsGrpcServerInstance.GracefulStop()
 }

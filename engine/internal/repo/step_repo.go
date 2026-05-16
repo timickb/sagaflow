@@ -10,6 +10,7 @@ import (
 	"github.com/timickb/sagaflow/engine/internal/repo/dbstruct"
 	"github.com/timickb/sagaflow/lib/db"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type stepRepo struct {
@@ -42,12 +43,25 @@ func (r *stepRepo) GetByInstanceAndName(
 	return mapped, true, nil
 }
 
-// Create - создать шаг экземпляра, ожидающий выполнения
-func (r *stepRepo) Create(ctx context.Context, dto *domain.StepCreateDto) (*domain.StepView, error) {
+// Upsert - создать шаг экземпляра, ожидающий выполнения, или перевести существующий в PENDING.
+func (r *stepRepo) Upsert(ctx context.Context, dto *domain.StepCreateDto) (*domain.StepView, error) {
 	step := dbstruct.NewSagaStep(dto)
-	err := r.db.WithTxSupport(ctx).Create(step).Error
+	err := r.db.WithTxSupport(ctx).
+		Clauses(
+			clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "saga_id"},
+					{Name: "step_name"},
+				},
+				DoUpdates: clause.Assignments(map[string]interface{}{
+					"status": step.Status,
+				}),
+			},
+			clause.Returning{},
+		).
+		Create(step).Error
 	if err != nil {
-		return nil, fmt.Errorf("create saga step: %w", err)
+		return nil, fmt.Errorf("create or update saga step: %w", err)
 	}
 	mapped, mapErr := step.ToDomain()
 	if mapErr != nil {

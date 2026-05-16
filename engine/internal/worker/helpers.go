@@ -3,8 +3,10 @@ package worker
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/timickb/sagaflow/engine/internal/domain"
 	"github.com/timickb/sagaflow/lib/broker"
+	"github.com/timickb/sagaflow/lib/utils"
 )
 
 func calculateNextRetry(retryPolicy *domain.RetryPolicy, currentStep *domain.StepView) time.Time {
@@ -41,4 +43,16 @@ func mergeStepOutputToContext(
 		}
 	}
 	return instanceCtx.AppendMap(dataToMerge)
+}
+
+func buildStepTimeoutEvent(instanceId uuid.UUID, stepId string) *broker.SagaStepResultEvent {
+	return &broker.SagaStepResultEvent{
+		Ref: broker.SagaStepRef{
+			SagaId:      instanceId,
+			StepName:    stepId,
+			ServiceName: "ENGINE",
+		},
+		Status:     broker.SagaStepStatusTimeout,
+		ResolvedAt: utils.Ptr(time.Now()),
+	}
 }

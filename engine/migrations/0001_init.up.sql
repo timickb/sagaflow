@@ -44,6 +44,7 @@ CREATE TABLE saga_instance
     context_version    BIGINT      NOT NULL DEFAULT 0,
 
     next_execution_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    event_timeout_at   TIMESTAMPTZ,
     locked_till        TIMESTAMPTZ NULL,
     locked_by          TEXT        NULL
 );

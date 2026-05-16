@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/rs/zerolog v1.35.0
 	github.com/segmentio/kafka-go v0.4.50
+	github.com/timickb/sagaflow/lib v0.0.0-00010101000000-000000000000
 	github.com/timickb/sagaflow/proto v0.0.0
 	google.golang.org/grpc v1.80.0
 )

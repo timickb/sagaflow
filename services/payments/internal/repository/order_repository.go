@@ -43,6 +43,7 @@ func (r *OrderRepository) MakePaid(ctx context.Context, id uuid.UUID, details []
 		UpdateColumns(map[string]interface{}{
 			"status":  domain.OrderStatusPaid,
 			"details": details,
+			"version": gorm.Expr("version + ?", 1),
 		})
 	if tx.Error != nil {
 		return nil, tx.Error

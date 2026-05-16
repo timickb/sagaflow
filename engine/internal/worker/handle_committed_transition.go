@@ -81,6 +81,10 @@ func (r *Runner) handleCommittedTransition(
 		)
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonBuildStepInputData), nil
 	}
+	incrementReconcileCycles := false
+	if currentStepDef.Kind == domain.StepKindReconcile {
+		incrementReconcileCycles = true
+	}
 
 	return &eventHandleResult{
 		InstanceTransitionDto: transitionDto,
@@ -91,9 +95,10 @@ func (r *Runner) handleCommittedTransition(
 			InputData:  inputData,
 		},
 		StepUpdateDto: &domain.StepUpdateDto{
-			InstanceId: instance.SagaId,
-			StepName:   currentStepDef.Id,
-			Status:     utils.Ptr(domain.StepStatusCommitted),
+			InstanceId:               instance.SagaId,
+			StepName:                 currentStepDef.Id,
+			Status:                   utils.Ptr(domain.StepStatusCommitted),
+			IncrementReconcileCycles: incrementReconcileCycles,
 		},
 	}, nil
 }

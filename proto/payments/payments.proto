@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package payments.v1;
+
+option go_package = "github.com/timickb/sagaflow/proto/gen/go/payments;payments";
+
+service PaymentsService {
+  rpc GetOrderById(GetOrderByIdRequest) returns (GetOrderByIdResponse);
+}
+
+message GetOrderByIdRequest {
+  string order_id = 1;
+}
+
+message GetOrderByIdResponse {
+  string order_id = 1;
+  string user_id = 2;
+  string status = 3;
+  float total_amount = 4;
+  string currency = 5;
+
+  string created_at = 6;
+  string updated_at = 7;
+  int32 version = 8;
+}

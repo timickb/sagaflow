@@ -13,6 +13,10 @@ import (
 	"github.com/timickb/sagaflow/lib/utils"
 )
 
+const (
+	timeoutResolverWorker = "timeout_resolver"
+)
+
 type Runner struct {
 	cfg          domain.RunnerConfig
 	handlers     domain.HandlersConfig
@@ -76,6 +80,33 @@ func (r *Runner) startWorker(ctx context.Context, idx int) {
 			if err != nil || len(instances) == 0 {
 				if err != nil {
 					log.Error().Err(err).Msgf("Worker %d failed to take batch", idx)
+				}
+				time.Sleep(r.cfg.GetEmptyBatchDelay())
+				continue
+			}
+			for _, instance := range instances {
+				r.runInstance(ctx, instance)
+			}
+		}
+	}
+}
+
+func (r *Runner) startTimeoutResolver(ctx context.Context) {
+	log.Info().Msg("Starting timeout resolver")
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Msg("Timeout resolver received context done")
+		default:
+			instances, err := r.instanceRepo.TakeExpiredBatch(
+				ctx,
+				r.cfg.GetBatchSize(),
+				r.cfg.GetLockTimeout(),
+				timeoutResolverWorker,
+			)
+			if err != nil || len(instances) == 0 {
+				if err != nil {
+					log.Error().Err(err).Msgf("Timeout resolver failed to take batch")
 				}
 				time.Sleep(r.cfg.GetEmptyBatchDelay())
 				continue

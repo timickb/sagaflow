@@ -104,6 +104,9 @@ func NewSagaStepUpdatesMap(dto *domain.StepUpdateDto) map[string]interface{} {
 	if dto.IncrementAttempt {
 		result["attempt"] = gorm.Expr("attempt + 1")
 	}
+	if dto.IncrementReconcileCycles {
+		result["reconcile_cycles"] = gorm.Expr("reconcile_cycles + 1")
+	}
 	if dto.ErrorData != nil {
 		result["error_data"] = dto.ErrorData.GetRaw()
 	}

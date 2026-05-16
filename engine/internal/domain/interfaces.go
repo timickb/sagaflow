@@ -57,6 +57,12 @@ type InstanceRepository interface {
 		lockExpire time.Duration,
 		workerId string,
 	) ([]*InstanceView, error)
+	TakeExpiredBatch(
+		ctx context.Context,
+		batchSize int,
+		lockExpire time.Duration,
+		workerId string,
+	) ([]*InstanceView, error)
 	GetForEvent(ctx context.Context, id uuid.UUID) (*InstanceView, error)
 	MakeTransition(ctx context.Context, dto *InstanceTransitionDto) error
 	RemoveLock(ctx context.Context, id uuid.UUID) error
@@ -68,7 +74,7 @@ type InstanceRepository interface {
 // StepRepository - репозиторий над шагами саги
 type StepRepository interface {
 	GetByInstanceAndName(ctx context.Context, instanceId uuid.UUID, stepName string) (*StepView, bool, error)
-	Create(ctx context.Context, dto *StepCreateDto) (*StepView, error)
+	Upsert(ctx context.Context, dto *StepCreateDto) (*StepView, error)
 	Update(ctx context.Context, dto *StepUpdateDto) error
 }
 

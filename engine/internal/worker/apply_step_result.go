@@ -49,7 +49,7 @@ func (r *Runner) ApplyStepResult(ctx context.Context, event *broker.SagaStepResu
 			}
 		}
 		if result.StepCreateDto != nil {
-			if _, sErr := r.stepRepo.Create(ctx, result.StepCreateDto); sErr != nil {
+			if _, sErr := r.stepRepo.Upsert(ctx, result.StepCreateDto); sErr != nil {
 				return fmt.Errorf("save new step: %w", sErr)
 			}
 		}

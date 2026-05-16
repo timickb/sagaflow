@@ -16,6 +16,7 @@ const (
 	SagaStepStatusCommitted SagaStepResultStatus = "COMMITTED"
 	SagaStepStatusFailed    SagaStepResultStatus = "FAILED"
 	SagaStepStatusRejected  SagaStepResultStatus = "REJECTED"
+	SagaStepStatusTimeout   SagaStepResultStatus = "TIMEOUT"
 )
 
 // SagaStepRef - шаг саги
