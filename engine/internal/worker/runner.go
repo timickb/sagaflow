@@ -55,7 +55,7 @@ func NewRunner(
 
 func (r *Runner) Run(ctx context.Context) error {
 	wg := sync.WaitGroup{}
-	wg.Add(r.cfg.GetWorkersNum())
+	wg.Add(r.cfg.GetWorkersNum() + 1)
 
 	for i := 0; i < r.cfg.GetWorkersNum(); i++ {
 		go func(idx int) {
@@ -63,6 +63,11 @@ func (r *Runner) Run(ctx context.Context) error {
 			r.startWorker(ctx, i)
 		}(i)
 	}
+
+	go func() {
+		defer wg.Done()
+		r.startTimeoutResolver(ctx)
+	}()
 
 	wg.Wait()
 	return nil
@@ -112,7 +117,7 @@ func (r *Runner) startTimeoutResolver(ctx context.Context) {
 				continue
 			}
 			for _, instance := range instances {
-				r.runInstance(ctx, instance)
+				r.handleInstanceTimeout(ctx, instance)
 			}
 		}
 	}
@@ -217,5 +222,36 @@ func (r *Runner) finishInstance(
 	})
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to set instance %v finished", instanceId)
+	}
+}
+
+func (r *Runner) handleInstanceTimeout(ctx context.Context, instance *domain.InstanceView) {
+	sagaDef, found := r.sagaCache.GetSagaDefinition(domain.SagaDefinitionHeader{
+		Name:    instance.SagaName,
+		Version: instance.SagaVersion,
+	})
+	if !found {
+		log.Error().Msgf("Saga %s:%d does not exist", instance.SagaName, instance.SagaVersion)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonSagaNotFound, nil)
+		return
+	}
+	stepDef := utils.Find(sagaDef.Steps, func(step *domain.DefinitionStep) bool {
+		return step.Id == *instance.CurrentStepName
+	})
+	if stepDef == nil {
+		log.Error().Msgf(
+			"Instance %s attempts to call undeclared step %s",
+			instance.SagaId, *instance.CurrentStepName,
+		)
+		r.failInstance(ctx, instance.SagaId, domain.InstanceFailReasonStepNotFound, nil)
+		return
+	}
+	pubErr := r.publisher.Publish(ctx, buildStepTimeoutEvent(instance.SagaId, stepDef.Id))
+	if pubErr != nil {
+		log.Error().Err(pubErr).Msgf(
+			"Failed to publish timeout step result (%s) for instance %v",
+			pubErr.Error(),
+			instance.SagaId,
+		)
 	}
 }

@@ -47,6 +47,8 @@ func (c *StepHandlerController) Handle(ctx context.Context, req *sagaflow.Handle
 		return c.handleReserve(ctx, req)
 	case "Release":
 		return c.handleRelease(ctx, req)
+	case "Confirm":
+		return c.handleConfirm(ctx, req)
 	default:
 		return &sagaflow.HandleResponse{
 			Success: false,
@@ -58,6 +60,14 @@ func (c *StepHandlerController) Handle(ctx context.Context, req *sagaflow.Handle
 type reservePayload struct {
 	OrderID string                `json:"order_id"`
 	Items   []service.ReserveItem `json:"items"`
+}
+
+type releasePayload struct {
+	OrderID string `json:"order_id"`
+}
+
+type confirmPayload struct {
+	OrderID string `json:"order_id"`
 }
 
 func (c *StepHandlerController) handleReserve(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
@@ -96,10 +106,6 @@ func (c *StepHandlerController) handleReserve(ctx context.Context, req *sagaflow
 	return &sagaflow.HandleResponse{Success: true}, nil
 }
 
-type releasePayload struct {
-	OrderID string `json:"order_id"`
-}
-
 func (c *StepHandlerController) handleRelease(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
 	var payload releasePayload
 	if err := json.Unmarshal(req.Payload, &payload); err != nil {
@@ -130,6 +136,42 @@ func (c *StepHandlerController) handleRelease(ctx context.Context, req *sagaflow
 		return &sagaflow.HandleResponse{
 			Success: false,
 			Error:   ptrString(fmt.Sprintf("release failed: %v", err)),
+		}, nil
+	}
+
+	return &sagaflow.HandleResponse{Success: true}, nil
+}
+
+func (c *StepHandlerController) handleConfirm(ctx context.Context, req *sagaflow.HandleRequest) (*sagaflow.HandleResponse, error) {
+	var payload confirmPayload
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse payload: %v", err)),
+		}, nil
+	}
+
+	orderID, err := uuid.Parse(payload.OrderID)
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse order_id: %v", err)),
+		}, nil
+	}
+
+	sagaID, err := uuid.Parse(req.Meta.GetSagaId())
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("parse saga_id: %v", err)),
+		}, nil
+	}
+
+	err = c.svc.Confirm(ctx, orderID, sagaID, req.Meta.GetStepId())
+	if err != nil {
+		return &sagaflow.HandleResponse{
+			Success: false,
+			Error:   ptrString(fmt.Sprintf("confirm failed: %v", err)),
 		}, nil
 	}
 

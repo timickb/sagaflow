@@ -182,16 +182,17 @@ func (r *instanceRepo) GetForEvent(ctx context.Context, id uuid.UUID) (*domain.I
 	return instance.ToDomain()
 }
 
-// SetExecutionState - перевести в состояние ожидания события
-func (r *instanceRepo) SetExecutionState(ctx context.Context, id uuid.UUID, state domain.InstanceExecutionState) error {
+// SetWaitingEvent - перевести в состояние ожидания события
+func (r *instanceRepo) SetWaitingEvent(ctx context.Context, id uuid.UUID, timeout time.Duration) error {
 	now := time.Now()
 	query := r.db.WithTxSupport(ctx).
 		Model(&dbstruct.DBSagaInstance{}).
 		Where("saga_id = ?", id).
 		Updates(
 			map[string]interface{}{
-				"execution_state": state,
-				"updated_at":      now,
+				"execution_state":  domain.InstanceExecutionStateWaitingEvent,
+				"event_timeout_at": now.Add(timeout),
+				"updated_at":       now,
 			},
 		)
 

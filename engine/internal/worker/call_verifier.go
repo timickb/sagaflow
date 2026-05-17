@@ -26,7 +26,7 @@ func (r *Runner) callVerifier(
 		return
 	}
 
-	if err := r.instanceRepo.SetExecutionState(ctx, instance.SagaId, domain.InstanceExecutionStateWaitingEvent); err != nil {
+	if err := r.instanceRepo.SetWaitingEvent(ctx, instance.SagaId, stepDef.Timeout); err != nil {
 		log.Error().Err(err).Msgf("Unable to set WAITING_EVENT state for instance %v", instance.SagaId)
 		return
 	}

@@ -68,7 +68,7 @@ type InstanceRepository interface {
 	RemoveLock(ctx context.Context, id uuid.UUID) error
 	Create(ctx context.Context, dto *InstanceStartDto) (uuid.UUID, error)
 	Terminate(ctx context.Context, id uuid.UUID, dto *InstanceTerminateDto) error
-	SetExecutionState(ctx context.Context, id uuid.UUID, state InstanceExecutionState) error
+	SetWaitingEvent(ctx context.Context, id uuid.UUID, timeout time.Duration) error
 }
 
 // StepRepository - репозиторий над шагами саги

@@ -75,7 +75,7 @@ steps:
       order_id: ${input.order_id}
       amount: ${input.amount}
     on:
-      committed: VerifyOrderOLTP
+      committed: ConfirmInventory
       rejected: ReleaseInventory
       failed: ReleaseInventory
       timeout: ReleaseInventory
@@ -95,6 +95,25 @@ steps:
       order_id: ${input.order_id}
     on:
       committed: Rollback
+      rejected: Fail
+      failed: Fail
+      timeout: Fail
+
+  - id: ConfirmInventory
+    kind: action
+    description: Подтвердить брони товаров на складе
+    timeout: 10s
+    retry:
+      max_attempts: 5
+      delay: 1s
+      backoff: exponential
+    handler:
+      service: warehouse
+      method: Confirm
+    input:
+      order_id: ${input.order_id}
+    on:
+      committed: VerifyOrderOLTP
       rejected: Fail
       failed: Fail
       timeout: Fail
