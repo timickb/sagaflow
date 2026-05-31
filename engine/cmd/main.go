@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -11,11 +12,13 @@ import (
 )
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimeFieldFormat = zerolog.TimeFormatRFC3339
+	zerolog.TimestampFieldName = "time"
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: zerolog.TimeFormatRFC3339})
 	configPath := flag.String("cfg", "config.yaml", "config file")
 	flag.Parse()
 
-	if utils.IsStrNilOrEmpty(configPath) {
+	if utils.IsStrNilOrEmpty(*configPath) {
 		log.Fatal().Msg("Config file path is required")
 	}
 
