@@ -27,6 +27,10 @@ go.work.sum
 # env file
 .env
 
+# Dot-files and dot-directories
+.*
+!.gitignore
+
 # Editor/IDE
 # .idea/
 # .vscode/

@@ -80,6 +80,7 @@ func (r *Runner) startWorker(ctx context.Context, idx int) {
 		select {
 		case <-ctx.Done():
 			log.Info().Msgf("Worker %d received context done", idx)
+			return
 		default:
 			instances, err := r.instanceRepo.TakeBatch(ctx, r.cfg.GetBatchSize(), r.cfg.GetLockTimeout(), workerId)
 			if err != nil || len(instances) == 0 {
@@ -102,6 +103,7 @@ func (r *Runner) startTimeoutResolver(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			log.Info().Msg("Timeout resolver received context done")
+			return
 		default:
 			instances, err := r.instanceRepo.TakeExpiredBatch(
 				ctx,

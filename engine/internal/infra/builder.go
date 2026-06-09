@@ -82,10 +82,10 @@ func NewBuilder(cfg *config.Config) (*Builder, error) {
 func (b *Builder) buildContext() {
 	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT)
-	defer signal.Stop(sigCh)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-sigCh
+		signal.Stop(sigCh)
 		log.Info().Str("signal", sig.String()).Msg("OS signal received")
 		cancel()
 	}()
@@ -238,6 +238,13 @@ func (b *Builder) Start() *sync.WaitGroup {
 		if err := b.runServer(); err != nil {
 			log.Fatal().Err(err).Msg("gRPC server start failed")
 		}
+	}()
+
+	// Graceful stop gRPC сервера при отмене контекста
+	go func() {
+		<-ctx.Done()
+		log.Info().Msg("Shutting down gRPC server")
+		b.server.GracefulStop()
 	}()
 
 	return wg
