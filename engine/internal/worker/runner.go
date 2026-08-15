@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -53,46 +52,73 @@ func NewRunner(
 	}
 }
 
-func (r *Runner) Run(ctx context.Context) error {
+func (r *Runner) Run(ctx context.Context, listener *Listener) error {
+	jobs := make(chan *domain.InstanceView)
 	wg := sync.WaitGroup{}
-	wg.Add(r.cfg.GetWorkersNum() + 1)
 
+	wg.Add(r.cfg.GetWorkersNum())
 	for i := 0; i < r.cfg.GetWorkersNum(); i++ {
 		go func(idx int) {
 			defer wg.Done()
-			r.startWorker(ctx, i)
+			for instance := range jobs {
+				r.runInstance(ctx, instance)
+			}
+			log.Info().Msgf("Executor %d stopped", idx)
 		}(i)
 	}
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		r.startTimeoutResolver(ctx)
 	}()
 
+	r.dispatch(ctx, listener, jobs)
+	close(jobs)
+
 	wg.Wait()
 	return nil
 }
 
-func (r *Runner) startWorker(ctx context.Context, idx int) {
-	log.Info().Msgf("Starting worker %d", idx)
-	workerId := fmt.Sprintf("%s-%d", r.cfg.GetHostname(), idx)
+func (r *Runner) dispatch(ctx context.Context, listener *Listener, jobs chan<- *domain.InstanceView) {
+	workerId := r.cfg.GetHostname()
+	// Fallback-таймер: страховка от потерянных NOTIFY (listener был офлайн)
+	// и для отложенных инстансов с next_execution_at в будущем
+	ticker := time.NewTicker(r.cfg.GetEmptyBatchDelay())
+	defer ticker.Stop()
+
 	for {
+		// Выгребаем все доступное пачками, пока не опустеет
+		for {
+			batch, err := r.instanceRepo.TakeBatch(
+				ctx, r.cfg.GetBatchSize(), r.cfg.GetLockTimeout(), workerId,
+			)
+			if err != nil {
+				log.Error().Err(err).Msg("Dispatcher failed to take batch")
+				break
+			}
+			if len(batch) == 0 {
+				break
+			}
+			for _, instance := range batch {
+				select {
+				case jobs <- instance:
+				case <-ctx.Done():
+					return
+				}
+			}
+			// неполный батч => работа закончилась, ждем следующего сигнала
+			if len(batch) < r.cfg.GetBatchSize() {
+				break
+			}
+		}
+
+		// Спим до события: NOTIFY, тик fallback-поллинга или остановка
 		select {
 		case <-ctx.Done():
-			log.Info().Msgf("Worker %d received context done", idx)
 			return
-		default:
-			instances, err := r.instanceRepo.TakeBatch(ctx, r.cfg.GetBatchSize(), r.cfg.GetLockTimeout(), workerId)
-			if err != nil || len(instances) == 0 {
-				if err != nil {
-					log.Error().Err(err).Msgf("Worker %d failed to take batch", idx)
-				}
-				time.Sleep(r.cfg.GetEmptyBatchDelay())
-				continue
-			}
-			for _, instance := range instances {
-				r.runInstance(ctx, instance)
-			}
+		case <-listener.Wake():
+		case <-ticker.C:
 		}
 	}
 }
@@ -179,23 +205,14 @@ func (r *Runner) runInstance(ctx context.Context, instance *domain.InstanceView)
 		return
 	}
 	// 3. Выполнение очередного шага
-	r.executeStep(ctx, instance, pendingStepDef, pendingStep)
+	switch pendingStepDef.Kind {
+	case domain.StepKindAction, domain.StepKindCompensate, domain.StepKindReconcile:
+		r.callHandler(ctx, instance, pendingStepDef, pendingStep)
+	case domain.StepKindVerify:
+		r.callVerifier(ctx, instance, pendingStepDef)
+	}
 
 	log.Info().Msgf("Finish instance %v step handling", instance.SagaId)
-}
-
-func (r *Runner) executeStep(
-	ctx context.Context,
-	instance *domain.InstanceView,
-	stepDef *domain.DefinitionStep,
-	step *domain.StepView,
-) {
-	switch stepDef.Kind {
-	case domain.StepKindAction, domain.StepKindCompensate, domain.StepKindReconcile:
-		r.callHandler(ctx, instance, stepDef, step)
-	case domain.StepKindVerify:
-		r.callVerifier(ctx, instance, stepDef)
-	}
 }
 
 func (r *Runner) failInstance(

@@ -105,6 +105,8 @@ func (r *Runner) buildStepResult(
 		return r.handleFailedTransition(event, sagaDef, currentStepDef, instance, currentStep)
 	case broker.SagaStepStatusRejected:
 		return r.handleRejectedTransition(event, sagaDef, currentStepDef, instance, currentStep)
+	case broker.SagaStepStatusTimeout:
+		return r.handleTimeoutTransition(event, sagaDef, currentStepDef, instance, currentStep)
 	default:
 		return &eventHandleResult{
 			InstanceTransitionDto: &domain.InstanceTransitionDto{
@@ -119,4 +121,105 @@ func (r *Runner) buildStepResult(
 			},
 		}, nil
 	}
+}
+
+// handleCommittedTransition Обработать переход on.committed для шагов типа action/compensate/reconcile
+// или по on.matched для шагов типа verify
+func (r *Runner) handleCommittedTransition(
+	event *broker.SagaStepResultEvent,
+	sagaDef *domain.SagaDefinition,
+	currentStepDef *domain.DefinitionStep,
+	instance *domain.InstanceView,
+	currentStep *domain.StepView,
+) (*eventHandleResult, error) {
+	return r.advanceOnOutcome(
+		event, sagaDef, currentStepDef, instance, currentStep,
+		resolveOutcome(currentStepDef.Kind, domain.OutcomeCommitted, domain.OutcomeMatched),
+		stepDisposition{
+			currentStepStatus:        domain.StepStatusCommitted,
+			incrementReconcileCycles: currentStepDef.Kind == domain.StepKindReconcile,
+		},
+	)
+}
+
+// handleFailedTransition Обработать переход on.failed для шагов типа action/compensate/verify/reconcile
+func (r *Runner) handleFailedTransition(
+	event *broker.SagaStepResultEvent,
+	sagaDef *domain.SagaDefinition,
+	currentStepDef *domain.DefinitionStep,
+	instance *domain.InstanceView,
+	currentStep *domain.StepView,
+) (result *eventHandleResult, err error) {
+	disp := stepDisposition{currentStepStatus: domain.StepStatusFailed}
+	var notRetriable bool
+	if event.Error != nil {
+		notRetriable = !event.Error.Retriable
+		errData, cErr := domain.NewJsonInstanceContextFromAny(event.Error)
+		if cErr != nil {
+			return nil, fmt.Errorf("create instance context from error data struct: %w", cErr)
+		}
+		disp.errorData = errData
+		disp.instanceErrMsg = utils.Ptr(event.Error.String())
+	}
+
+	// спец-случай: ретраи еще остались -> повторяем тот же шаг
+	if currentStepDef.Retry != nil && currentStepDef.Retry.MaxAttempts >= currentStep.Attempt && !notRetriable {
+		return &eventHandleResult{
+			InstanceTransitionDto: &domain.InstanceTransitionDto{
+				Id:              instance.SagaId,
+				ExecutionState:  utils.Ptr(domain.InstanceExecutionStateRunnable),
+				NextStepName:    currentStep.Name,
+				NextExecutionAt: utils.Ptr(calculateNextRetry(currentStepDef.Retry, currentStep)),
+				ErrCode:         utils.Ptr(string(domain.InstanceErrorCodeHandler)),
+				ErrMessage:      disp.instanceErrMsg,
+			},
+			StepUpdateDto: &domain.StepUpdateDto{
+				InstanceId:       instance.SagaId,
+				StepName:         currentStep.Name,
+				IncrementAttempt: true,
+				// TODO: нужно ли записывать currentStepErrData, если ретраи еще не закончились?
+			},
+		}, nil
+	}
+
+	return r.advanceOnOutcome(event, sagaDef, currentStepDef, instance, currentStep,
+		domain.OutcomeFailed, disp)
+}
+
+// handleRejectedTransition Обработать переход on.rejected для шагов типа action/compensate/reconcile
+// или по on.unmatched для шагов типа verify
+func (r *Runner) handleRejectedTransition(
+	event *broker.SagaStepResultEvent,
+	sagaDef *domain.SagaDefinition,
+	currentStepDef *domain.DefinitionStep,
+	instance *domain.InstanceView,
+	currentStep *domain.StepView,
+) (result *eventHandleResult, err error) {
+	disp := stepDisposition{currentStepStatus: domain.StepStatusFailed}
+	if event.Error != nil {
+		errData, cErr := domain.NewJsonInstanceContextFromAny(event.Error)
+		if cErr != nil {
+			return nil, fmt.Errorf("create instance context from error data struct: %w", cErr)
+		}
+		disp.errorData = errData
+		disp.instanceErrCode = utils.Ptr(string(domain.InstanceErrorCodeHandler))
+		disp.instanceErrMsg = utils.Ptr(event.Error.String())
+	}
+	return r.advanceOnOutcome(event, sagaDef, currentStepDef, instance, currentStep,
+		resolveOutcome(currentStepDef.Kind, domain.OutcomeRejected, domain.OutcomeUnmatched), disp)
+}
+
+// handleTimeoutTransition Обработать переход on.timeout
+func (r *Runner) handleTimeoutTransition(
+	event *broker.SagaStepResultEvent,
+	sagaDef *domain.SagaDefinition,
+	currentStepDef *domain.DefinitionStep,
+	instance *domain.InstanceView,
+	currentStep *domain.StepView,
+) (*eventHandleResult, error) {
+	return r.advanceOnOutcome(
+		event, sagaDef, currentStepDef, instance, currentStep,
+		domain.OutcomeTimeout,
+		stepDisposition{currentStepStatus: domain.StepStatusFailed},
+	)
 }
