@@ -66,7 +66,8 @@ func (r *instanceRepo) TakeExpiredBatch(
 		WITH batch AS (
     		SELECT saga_id
     		FROM saga_instance
-    		WHERE execution_state = 'WAITING_EVENT'
+			WHERE status IN ('PENDING', 'RUNNING', 'COMPENSATING', 'VERIFYING')
+    		AND execution_state = 'WAITING_EVENT'
       			AND event_timeout_at < now()
       			AND (locked_till IS NULL OR locked_till < now())
    	 		ORDER BY event_timeout_at, started_at

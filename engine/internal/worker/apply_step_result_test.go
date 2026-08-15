@@ -619,6 +619,13 @@ func TestHandleCommittedTransition(t *testing.T) {
 					Transitions: map[domain.StepOutcome]string{
 						domain.OutcomeCommitted: "terminal",
 					},
+					Outputs: []domain.StepOutputParam{
+						{
+							SourceNamespace:  domain.StepOutputSourceResult,
+							SourceParam:      "computed_value",
+							DestinationParam: "computed_value",
+						},
+					},
 				},
 				{
 					Id:     "terminal",
@@ -647,6 +654,83 @@ func TestHandleCommittedTransition(t *testing.T) {
 		val, err := result.InstanceTransitionDto.RuntimeContext.Find("computed_value")
 		require.NoError(t, err)
 		require.Equal(t, 42.0, val)
+	})
+
+	t.Run("only declared outputs are merged - undeclared result keys are dropped", func(t *testing.T) {
+		sagaID := uuid.New()
+		runtimeCtx, err := domain.NewJsonInstanceContextFromAny(map[string]any{"existing": "kept"})
+		require.NoError(t, err)
+		initialCtx, err := domain.NewJsonInstanceContextFromAny(map[string]any{})
+		require.NoError(t, err)
+
+		event := &broker.SagaStepResultEvent{
+			Ref: broker.SagaStepRef{
+				SagaId:   sagaID,
+				StepName: "step1",
+			},
+			Status: broker.SagaStepStatusCommitted,
+			Result: map[string]any{
+				"declared_value": 42.0,
+				// не объявлен в outputs -> не должен попасть в контекст
+				"secret_value": "should_not_leak",
+			},
+		}
+
+		sagaDef := &domain.SagaDefinition{
+			Steps: []*domain.DefinitionStep{
+				{
+					Id:      "step1",
+					Kind:    domain.StepKindAction,
+					Timeout: 30 * time.Second,
+					Transitions: map[domain.StepOutcome]string{
+						domain.OutcomeCommitted: "terminal",
+					},
+					Outputs: []domain.StepOutputParam{
+						{
+							SourceNamespace:  domain.StepOutputSourceResult,
+							SourceParam:      "declared_value",
+							DestinationParam: "declared_value",
+						},
+					},
+				},
+				{
+					Id:     "terminal",
+					Kind:   domain.StepKindTerminal,
+					Result: utils.Ptr(domain.SagaResultCompleted),
+				},
+			},
+		}
+		currentStepDef := sagaDef.Steps[0]
+		instance := &domain.InstanceView{
+			SagaId:         sagaID,
+			Status:         domain.InstanceStatusRunning,
+			InitialContext: initialCtx,
+			RuntimeContext: runtimeCtx,
+		}
+		currentStep := &domain.StepView{
+			Name:      "step1",
+			Order:     1,
+			UpdatedAt: baseTime,
+		}
+
+		result, err := testRunner.handleCommittedTransition(event, sagaDef, currentStepDef, instance, currentStep)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.NotNil(t, result.InstanceTransitionDto.RuntimeContext)
+
+		// объявленный output смёржен
+		declared, err := result.InstanceTransitionDto.RuntimeContext.Find("declared_value")
+		require.NoError(t, err)
+		require.Equal(t, 42.0, declared)
+
+		// уже существовавшие данные контекста сохранены
+		existing, err := result.InstanceTransitionDto.RuntimeContext.Find("existing")
+		require.NoError(t, err)
+		require.Equal(t, "kept", existing)
+
+		// необъявленный ключ из event.Result НЕ протёк в контекст
+		_, err = result.InstanceTransitionDto.RuntimeContext.Find("secret_value")
+		require.Error(t, err)
 	})
 
 	t.Run("next step with delay - sets next execution time", func(t *testing.T) {

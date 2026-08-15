@@ -143,7 +143,7 @@ steps:
 
   - id: VerifyAnalyticsMaterialization
     kind: verify
-    delay: 10s
+    delay: 5s
     timeout: 10s
     retry:
       max_attempts: 5

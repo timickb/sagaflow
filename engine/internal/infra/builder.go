@@ -37,6 +37,7 @@ type Builder struct {
 	sagasCache         domain.SagaDefinitionCache
 	instanceUsecase    domain.InstanceUsecase
 	stepHandlerAdapter domain.StepHandler
+	listener           *worker.Listener
 }
 
 func NewBuilder(cfg *config.Config) (*Builder, error) {
@@ -203,10 +204,15 @@ func (b *Builder) Start() *sync.WaitGroup {
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
 	ctx := b.ctx
-	// 1. Запуск асинхронного обработчика инстансов
+
+	// buildRunner: помимо runner создаём listener
+	b.listener = worker.NewListener(b.cfg.Postgres.DSNString())
+
+	// Start, горутина запуска runner:
 	go func() {
 		defer wg.Done()
-		if err := b.runner.Run(ctx); err != nil {
+		go b.listener.Run(ctx) // слушатель на своём соединении
+		if err := b.runner.Run(ctx, b.listener); err != nil {
 			log.Fatal().Err(err).Msg("Runner start failed")
 		}
 	}()
