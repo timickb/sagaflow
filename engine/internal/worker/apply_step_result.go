@@ -162,7 +162,7 @@ func (r *Runner) handleFailedTransition(
 		disp.instanceErrMsg = utils.Ptr(event.Error.String())
 	}
 
-	// спец-случай: ретраи ещё остались -> повторяем тот же шаг
+	// спец-случай: ретраи еще остались -> повторяем тот же шаг
 	if currentStepDef.Retry != nil && currentStepDef.Retry.MaxAttempts >= currentStep.Attempt && !notRetriable {
 		return &eventHandleResult{
 			InstanceTransitionDto: &domain.InstanceTransitionDto{

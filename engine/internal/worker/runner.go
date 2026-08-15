@@ -107,7 +107,7 @@ func (r *Runner) dispatch(ctx context.Context, listener *Listener, jobs chan<- *
 					return
 				}
 			}
-			// неполный батч => работа закончилась, ждём следующего сигнала
+			// неполный батч => работа закончилась, ждем следующего сигнала
 			if len(batch) < r.cfg.GetBatchSize() {
 				break
 			}

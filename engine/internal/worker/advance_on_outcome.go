@@ -15,12 +15,12 @@ import (
 type stepDisposition struct {
 	currentStepStatus        domain.StepStatus      // статус, в который перевести текущий шаг
 	errorData                domain.InstanceContext // данные ошибки текущего шага (nil, если ошибки нет)
-	incrementReconcileCycles bool                   // увеличить счётчик циклов reconcile
+	incrementReconcileCycles bool                   // увеличить счетчик циклов reconcile
 	instanceErrCode          *string                // код ошибки на переходе инстанса
 	instanceErrMsg           *string                // сообщение об ошибке на переходе инстанса
 }
 
-// resolveOutcome возвращает исход перехода с учётом того, что для шагов
+// resolveOutcome возвращает исход перехода с учетом того, что для шагов
 // типа verify используются специальные исходы (matched/unmatched).
 func resolveOutcome(kind domain.StepKind, base, verifyVariant domain.StepOutcome) domain.StepOutcome {
 	if kind == domain.StepKindVerify {
@@ -61,7 +61,7 @@ func (r *Runner) advanceOnOutcome(
 		return NewEventHandleFailedResult(instance.SagaId, domain.InstanceFailReasonApplyStepOutputData), nil
 	}
 
-	// Сбор входных данных для следующего шага из обновлённого контекста
+	// Сбор входных данных для следующего шага из обновленного контекста
 	inputData, err := domain.NewStepInputContext(
 		nextStepDef.Inputs,
 		instance.InitialContext,

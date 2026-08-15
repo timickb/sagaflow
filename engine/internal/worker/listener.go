@@ -20,7 +20,7 @@ type Listener struct {
 func NewListener(dsn string) *Listener {
 	return &Listener{
 		dsn: dsn,
-		// буфер 1 = дедупликация: пока диспетчер не разгрёб прошлый
+		// буфер 1 = дедупликация: пока диспетчер не разгреб прошлый
 		// сигнал, лавина NOTIFY схлопывается в один (anti thundering herd).
 		wake: make(chan struct{}, 1),
 	}

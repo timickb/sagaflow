@@ -718,7 +718,7 @@ func TestHandleCommittedTransition(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.InstanceTransitionDto.RuntimeContext)
 
-		// объявленный output смёржен
+		// объявленный output смержен
 		declared, err := result.InstanceTransitionDto.RuntimeContext.Find("declared_value")
 		require.NoError(t, err)
 		require.Equal(t, 42.0, declared)
@@ -728,7 +728,7 @@ func TestHandleCommittedTransition(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "kept", existing)
 
-		// необъявленный ключ из event.Result НЕ протёк в контекст
+		// необъявленный ключ из event.Result НЕ протек в контекст
 		_, err = result.InstanceTransitionDto.RuntimeContext.Find("secret_value")
 		require.Error(t, err)
 	})

@@ -205,13 +205,13 @@ func (b *Builder) Start() *sync.WaitGroup {
 	wg.Add(3)
 	ctx := b.ctx
 
-	// buildRunner: помимо runner создаём listener
+	// buildRunner: помимо runner создаем listener
 	b.listener = worker.NewListener(b.cfg.Postgres.DSNString())
 
 	// Start, горутина запуска runner:
 	go func() {
 		defer wg.Done()
-		go b.listener.Run(ctx) // слушатель на своём соединении
+		go b.listener.Run(ctx) // слушатель на своем соединении
 		if err := b.runner.Run(ctx, b.listener); err != nil {
 			log.Fatal().Err(err).Msg("Runner start failed")
 		}
